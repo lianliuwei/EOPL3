@@ -104,6 +104,18 @@
         ("quotient" "(" expression "," expression ")") 
         quotient-exp)
       
+      (expression 
+        ("equal?" "(" expression "," expression ")")
+        equal?-exp)
+      
+      (expression 
+        ("greater?" "(" expression "," expression ")")
+        greater?-exp)
+      
+      (expression
+        ("less?" "(" expression "," expression ")")
+        less?-exp)
+      
       (expression
        ("zero?" "(" expression ")") 
        zero?-exp)
@@ -163,6 +175,21 @@
         
         (quotient-exp (exp1 exp2) 
                       (num-val (quotient 
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (equal?-exp (exp1 exp2) 
+                      (bool-val (equal? 
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (greater?-exp (exp1 exp2) 
+                      (bool-val (>
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (less?-exp (exp1 exp2) 
+                      (bool-val (< 
                                 (expval->num (value-of exp1 env)) 
                                 (expval->num (value-of exp2 env)))))
         
@@ -244,10 +271,18 @@
       
       ;; test quotient  operate
       (just-quotient "quotient(10,3)" 3)
+      
+      ;; test equal? greater? less?
+      (no-equal "equal?(1, 2)" #f)
+      (equal "equal?(10, 10)"  #t)
+      (greater "greater?(10, 2)" #t)
+      (no-greater "greater?(19, 19)" #f)
+      (less "less?(4,6)" #t)
+      (no-less "less?(88,7)" #f)
       ))
   
   (run-all)
-  
+  ;; 95
   )
 
 
