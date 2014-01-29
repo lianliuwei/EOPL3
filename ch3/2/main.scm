@@ -149,6 +149,10 @@
         ("emptylist")
         emptylist-exp)
       
+      (expression
+        ("list" "(" (separated-list expression ",") ")")
+        list-exp)
+      
       ))
   
   ;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
@@ -229,9 +233,18 @@
         
         (cdr-exp (exp1) (list-val (cdr (expval->list (value-of exp1 env)))))
         
+        (list-exp (exps) (list-val (value-of-exps exps env)))
+        
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         )))
+  
+  (define value-of-exps
+    (lambda (exps env)
+      (if (null? exps)
+          '()
+          (cons (value-of (car exps) env)
+                (value-of-exps (cdr exps) env)))))
   
   (define test-list
     '(
@@ -313,13 +326,15 @@
       (two-item "cons(1,cons(zero?(0),emptylist))" (1 #t))
       (list-in-item "cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist)))" (1 #t (10)))
       
+      ;; list operate
+      (empty-list2 "list()" ())
+      (one-item2 "list(100)" (100))
+      (three-item "list(120, 200, zero?(0))" (120 200 #t))
+      (e3.10 "let x=4 in list(x, -(x,1), -(x,3))" (4 3 1))
       ))
   
   (run-all)
-  ;; 95
-  ;(run-one 'empty-list)
-  ;(run-one 'no-equal)
-  (equal-answer? (run "emptylist") '())
+  ;; 96
   )
 
 
