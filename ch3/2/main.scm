@@ -48,6 +48,7 @@
       (cond
         ((number? sloppy-val) (num-val sloppy-val))
         ((boolean? sloppy-val) (bool-val sloppy-val))
+        ((list? sloppy-val) (list->list-val sloppy-val))
         (else
          (eopl:error 'sloppy->expval 
                      "Can't convert sloppy value to expval: ~s"
@@ -131,7 +132,23 @@
       (expression
        ("let" identifier "=" expression "in" expression)
        let-exp)   
-
+      
+      (expression 
+        ("cons" "(" expression "," expression ")")
+        cons-exp)
+      
+      (expression
+        ("car" "(" expression ")")
+        car-exp)
+      
+      (expression
+        ("cdr" "(" expression ")")
+        cdr-exp)
+      
+      (expression
+        ("emptylist")
+        emptylist-exp)
+      
       ))
   
   ;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
@@ -205,6 +222,15 @@
         
         (let-exp (var exp1 body) (value-of body 
                                            (extend-env var (value-of exp1 env) env)))
+        
+        (emptylist-exp () empty-list-val)
+        
+        (car-exp (exp1) (list-val (car (expval->list (value-of exp1 env)))))
+        
+        (cdr-exp (exp1) (list-val (cdr (expval->list (value-of exp1 env)))))
+        
+        (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
+                                              (expval->list (value-of exp2 env)))))
         )))
   
   (define test-list
@@ -279,10 +305,21 @@
       (no-greater "greater?(19, 19)" #f)
       (less "less?(4,6)" #t)
       (no-less "less?(88,7)" #f)
+      
+      ;; list test
+      ;; '() lead to wrong because ' is at first line of test-list
+      (empty-list "emptylist" ())
+      (one-item "cons(1,emptylist)" (1))
+      (two-item "cons(1,cons(zero?(0),emptylist))" (1 #t))
+      (list-in-item "cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist)))" (1 #t (10)))
+      
       ))
   
   (run-all)
   ;; 95
+  ;(run-one 'empty-list)
+  ;(run-one 'no-equal)
+  (equal-answer? (run "emptylist") '())
   )
 
 
