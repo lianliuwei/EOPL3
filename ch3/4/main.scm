@@ -47,7 +47,6 @@
     (lambda (sloppy-val)
       (cond
         ((number? sloppy-val) (num-val sloppy-val))
-        ((boolean? sloppy-val) (bool-val sloppy-val))
         ((list? sloppy-val) (list->list-val sloppy-val))
         (else
          (eopl:error 'sloppy->expval 
@@ -176,7 +175,7 @@
     (lambda (exp)
       (cases program exp
         (a-program (program-exp) (value-of program-exp (init-env))))))
-  
+    
   (define value-of
     (lambda (exp env)
       (cases expression exp
@@ -285,9 +284,9 @@
       (if-false "if zero?(1) then 3 else 4" 4)
       
       ;; test dynamic typechecking
-      (no-bool-to-diff-1 "-(zero?(0),1)" error)
-      (no-bool-to-diff-2 "-(1,zero?(0))" error)
-      (no-int-to-if "if 1 then 2 else 3" error)
+      ;; (no-bool-to-diff-1 "-(zero?(0),1)" error)
+      ;; (no-bool-to-diff-2 "-(1,zero?(0))" error)
+      ;; (no-int-to-if "if 1 then 2 else 3" error)
 
       ;; make sure that the test and both arms get evaluated
       ;; properly. 
@@ -325,24 +324,24 @@
       (just-quotient "quotient(10,3)" 3)
       
       ;; test equal? greater? less?
-      (no-equal "equal?(1, 2)" #f)
-      (equal "equal?(10, 10)"  #t)
-      (greater "greater?(10, 2)" #t)
-      (no-greater "greater?(19, 19)" #f)
-      (less "less?(4,6)" #t)
-      (no-less "less?(88,7)" #f)
+      (no-equal "equal?(1, 2)" 0)
+      (equal "equal?(10, 10)"  1)
+      (greater "greater?(10, 2)" 1)
+      (no-greater "greater?(19, 19)" 0)
+      (less "less?(4,6)" 1)
+      (no-less "less?(88,7)" 0)
       
       ;; list test
       ;; '() lead to wrong because ' is at first line of test-list
       (empty-list "emptylist" ())
       (one-item "cons(1,emptylist)" (1))
-      (two-item "cons(1,cons(zero?(0),emptylist))" (1 #t))
-      (list-in-item "cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist)))" (1 #t (10)))
+      (two-item "cons(1,cons(zero?(0),emptylist))" (1 1))
+      (list-in-item "cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist)))" (1 1 (10)))
       
       ;; list operate
       (empty-list2 "list()" ())
       (one-item2 "list(100)" (100))
-      (three-item "list(120, 200, zero?(0))" (120 200 #t))
+      (three-item "list(120, 200, zero?(0))" (120 200 1))
       (e3.10 "let x=4 in list(x, -(x,1), -(x,3))" (4 3 1))
       
       ;cond operate
