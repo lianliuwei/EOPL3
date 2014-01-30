@@ -381,7 +381,7 @@ let x = 200
        (y-combinator-1 "
 let fix =  proc (f)
             let d = proc (x) proc (z) ((f (x x)) z)
-            in proc (n) ((f (d d)) n)
+            in (d d)
 in let
     t4m = proc (f) proc(x) if zero?(x) then 0 else -((f -(x,1)),-4)
 in let times4 = (fix t4m)
