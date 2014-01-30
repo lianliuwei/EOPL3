@@ -106,27 +106,11 @@
         quotient-exp)
       
       (expression 
-        ("equal?" "(" expression "," expression ")")
-        equal?-exp)
-      
-      (expression 
-        ("greater?" "(" expression "," expression ")")
-        greater?-exp)
-      
-      (expression
-        ("less?" "(" expression "," expression ")")
-        less?-exp)
-      
-      (expression
-       ("zero?" "(" expression ")") 
-       zero?-exp)
-      
-      (expression 
        ("minus" "(" expression ")") 
        minus-exp)
       
       (expression
-       ("if" expression "then" expression "else" expression)
+       ("if" bool-expression "then" expression "else" expression)
        if-exp)
 
       (expression
@@ -154,8 +138,27 @@
         list-exp)
       
       (expression
-        ("cond"  (arbno "{" expression "==>" expression "}") "end")
+        ("cond"  (arbno "{" bool-expression "==>" expression "}") "end")
         cond-exp)
+      
+      (expression (bool-expression) a-bool-expression)
+      
+      ;; bool-expression
+      (bool-expression 
+        ("equal?" "(" expression "," expression ")")
+        equal?-exp)
+      
+      (bool-expression 
+        ("greater?" "(" expression "," expression ")")
+        greater?-exp)
+      
+      (bool-expression
+        ("less?" "(" expression "," expression ")")
+        less?-exp)
+      
+      (bool-expression
+       ("zero?" "(" expression ")") 
+       zero?-exp)
       ))
   
   ;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
@@ -182,6 +185,8 @@
       (cases expression exp
         (const-exp (exp1) (num-val exp1))
  
+        (a-bool-expression (exp1) (value-of-bool-expression exp1 env))
+        
         (diff-exp (exp1 exp2) 
                   (num-val (- 
                             (expval->num (value-of exp1 env)) 
@@ -202,28 +207,12 @@
                                 (expval->num (value-of exp1 env)) 
                                 (expval->num (value-of exp2 env)))))
         
-        (equal?-exp (exp1 exp2) 
-                      (bool-val (equal? 
-                                (expval->num (value-of exp1 env)) 
-                                (expval->num (value-of exp2 env)))))
-        
-        (greater?-exp (exp1 exp2) 
-                      (bool-val (>
-                                (expval->num (value-of exp1 env)) 
-                                (expval->num (value-of exp2 env)))))
-        
-        (less?-exp (exp1 exp2) 
-                      (bool-val (< 
-                                (expval->num (value-of exp1 env)) 
-                                (expval->num (value-of exp2 env)))))
         
         (var-exp (exp1) (apply-env env exp1))
         
-        (if-exp (exp1 exp2 exp3) (if (expval->bool (value-of exp1 env)) 
+        (if-exp (exp1 exp2 exp3) (if (expval->bool (value-of-bool-expression exp1 env)) 
                                                   (value-of exp2 env)
                                                   (value-of exp3 env)))
-        
-        (zero?-exp (exp1) (bool-val (= (expval->num (value-of exp1 env)) 0)))
         
         (minus-exp (exp1) (num-val (- 0 (expval->num (value-of exp1 env)))))
         
@@ -244,11 +233,33 @@
         (cond-exp (exps1 exps2) (value-of-cond exps1 exps2 env))
         )))
   
+  (define value-of-bool-expression
+    (lambda (exp env)
+      (cases bool-expression exp
+        (equal?-exp (exp1 exp2) 
+                      (bool-val (equal? 
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (greater?-exp (exp1 exp2) 
+                      (bool-val (>
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (less?-exp (exp1 exp2) 
+                      (bool-val (< 
+                                (expval->num (value-of exp1 env)) 
+                                (expval->num (value-of exp2 env)))))
+        
+        (zero?-exp (exp1) (bool-val (= (expval->num (value-of exp1 env)) 0)))
+        
+        )))
+  
   (define value-of-cond
     (lambda (conds results env)
       (if (null? conds)
        (eopl:error 'value-of-cond "no one branch is true")
-       (if (expval->bool (value-of (car conds) env))
+       (if (expval->bool (value-of-bool-expression (car conds) env))
            (value-of (car results) env)
            (value-of-cond (cdr conds) (cdr results) env)))))
   
@@ -348,7 +359,7 @@
       ;cond operate
       (simple-cond "cond{zero?(1) ==> 1} {zero?(0) ==> 2} end" 2)
       (two-true-cond "cond{zero?(0) ==> 1} {zero?(0) ==> 2} {equal?(10,1) ==> 3} end" 1)
-      (cond-in-let "let t = zero?(0) in let z = zero?(1) in cond {t ==> 1} {z ==> 2} end" 1)
+      ;;(cond-in-let "let t = zero?(0) in let z = zero?(1) in cond {t ==> 1} {z ==> 2} end" 1)
       ))
   
   (run-all)
