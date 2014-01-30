@@ -7,8 +7,7 @@
          (lambda (d)
            (lambda (n)
              ((f (d d)) n)))))
-      (lambda (n)
-        ((f (d d)) n)))))
+      (d d))))
 
 (define t4m
   (lambda (f)
@@ -17,3 +16,5 @@
           0
           (+ 4 (f (- n 1)))))))
 
+((fix t4m) 5) ; 20
+((fix t4m) 4) ; 16
