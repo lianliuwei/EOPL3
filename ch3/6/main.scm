@@ -114,7 +114,7 @@
        if-exp)
       
       (expression
-       ("let" identifier "=" expression "in" expression)
+       ("let" (arbno identifier "=" expression) "in" expression)
        let-exp)   
       
       (expression 
@@ -138,7 +138,7 @@
        list-exp)
       
       (expression
-       ("cond"  (arbno "{" bool-expression "==>" expression "}") "end")
+       ("cond"  (arbno bool-expression "==>" expression) "end")
        cond-exp)
       
       (expression 
@@ -222,8 +222,7 @@
         
         (minus-exp (exp1) (num-val (- 0 (expval->num (value-of exp1 env)))))
         
-        (let-exp (var exp1 body) (value-of body 
-                                           (extend-env var (value-of exp1 env) env)))
+        (let-exp (vars exps body) (value-of-let vars exps body env))
         
         (emptylist-exp () empty-list-val)
         
@@ -268,7 +267,7 @@
     (lambda (expval)
       (eopl:printf "print ~s~%" (expval->val expval))
       (num-val 1)))
-   
+  
   (define value-of-cond
     (lambda (conds results env)
       (if (null? conds)
@@ -283,6 +282,26 @@
           '()
           (cons (value-of (car exps) env)
                 (value-of-exps (cdr exps) env)))))
+  
+  (define value-of-let
+    (lambda (vars exps body env)
+      (value-of body (let-extend-env vars exps env))))
+  
+  (define let-extend-env
+    (lambda (vars exps env)
+      (if (null? vars)
+          env
+          (if (find-in-list (car vars) (cdr vars))
+              (eopl:error 'let "identifer repeat in let")
+              (extend-env (car vars) (value-of (car exps) env) (let-extend-env (cdr vars) (cdr exps) env))))))
+  
+  (define find-in-list
+    (lambda (var list)
+      (if (null? list)
+          #f
+          (if (equal? var (car list))
+              #t
+              (find-in-list var (cdr list))))))
   
   (define test-list
     '(
@@ -371,12 +390,20 @@
       (e3.10 "let x=4 in list(x, -(x,1), -(x,3))" (4 3 1))
       
       ;cond operate
-      (simple-cond "cond{zero?(1) ==> 1} {zero?(0) ==> 2} end" 2)
-      (two-true-cond "cond{zero?(0) ==> 1} {zero?(0) ==> 2} {equal?(10,1) ==> 3} end" 1)
+      (simple-cond "cond zero?(1) ==> 1 zero?(0) ==> 2 end" 2)
+      (two-true-cond "cond zero?(0) ==> 1 zero?(0) ==> 2 equal?(10,1) ==> 3 end" 1)
       ;;(cond-in-let "let t = zero?(0) in let z = zero?(1) in cond {t ==> 1} {z ==> 2} end" 1)
       
       ; print operate
       (printf "print(cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist))))" 1)
+      
+      ; mult let
+      (mult-let "
+let x = 30
+in let x = -(x,1)
+       y = -(x,2)
+   in -(x,y)" 1)
+      
       ))
   
   (run-all)
