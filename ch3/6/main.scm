@@ -118,8 +118,8 @@
        let-exp)   
       
       (expression
-        ("let*" (arbno identifier "=" expression) "in" expression)
-        let*-exp)
+       ("let*" (arbno identifier "=" expression) "in" expression)
+       let*-exp)
       
       (expression 
        ("cons" "(" expression "," expression ")")
@@ -291,27 +291,39 @@
   
   (define value-of-let
     (lambda (vars exps body env)
-      (value-of body (let-extend-env vars exps env))))
+      (if (repeat-in-list vars)
+          (eopl:error 'let "identifer repeat in let")
+          (value-of body (let-extend-env vars exps env)))))
   
   (define let-extend-env
     (lambda (vars exps env)
       (if (null? vars)
           env
-          (if (find-in-list (car vars) (cdr vars))
-              (eopl:error 'let "identifer repeat in let")
-              (extend-env (car vars) (value-of (car exps) env) (let-extend-env (cdr vars) (cdr exps) env))))))
+          (extend-env (car vars) 
+                      (value-of (car exps) env) 
+                      (let-extend-env (cdr vars) (cdr exps) env)))))
   
   (define value-of-let*
     (lambda (vars exps body env)
-      (value-of body (let*-extend-env vars exps env))))
+      (if (repeat-in-list vars)
+          (eopl:error 'let* "identifer repeat in let*")
+          (value-of body (let*-extend-env vars exps env)))))
   
   (define let*-extend-env
     (lambda (vars exps env)
       (if (null? vars)
-          env
-          (if (find-in-list (car vars) (cdr vars))
-              (eopl:error 'let* "identifer repeat in let*")
-              (let*-extend-env (cdr vars) (cdr exps) (extend-env (car vars) (value-of (car exps) env) env))))))
+          env              
+          (let*-extend-env (cdr vars) 
+                           (cdr exps) 
+                           (extend-env (car vars) (value-of (car exps) env) env)))))
+  
+  (define repeat-in-list
+    (lambda (list)
+      (if (null? list)
+          #f
+          (if (find-in-list (car list) (cdr list))
+              #t
+              (repeat-in-list (cdr list))))))
   
   (define find-in-list
     (lambda (var list)
