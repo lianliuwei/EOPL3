@@ -149,6 +149,10 @@
        ("print" "(" expression ")")
        print-exp)
       
+      (expression
+       ("unpack" (arbno identifier) "=" expression "in" expression)
+       unpack-exp)
+      
       (expression 
        (bool-expression) 
        a-bool-expression)
@@ -245,6 +249,8 @@
         
         (print-exp (exp1) (value-of-print (value-of exp1 env)))
         
+        (unpack-exp (vars list-val-exp exp) (value-of-unpack vars list-val-exp exp env))
+        
         )))
   
   (define value-of-bool-expression
@@ -269,6 +275,23 @@
         
         )))
   
+  (define value-of-unpack
+    (lambda (vars list-val-exp exp env)
+      (if (repeat-in-list vars)
+          (eopl:error 'unpack "identifer repeat")
+          (let ((list-val (expval->list (value-of list-val-exp env))))
+            (if (not(= (length vars) (length list-val)))
+                (eopl:error 'unpack "identifer number no equal to list")
+                (value-of exp (unpack-extend-env vars list-val env)))))))
+  
+  (define unpack-extend-env
+    (lambda (vars list-val env)
+      (if (null? vars)
+          env
+          (unpack-extend-env (cdr vars) 
+                             (cdr list-val) 
+                             (extend-env (car vars) (car list-val) env)))))
+  
   (define value-of-print
     (lambda (expval)
       (eopl:printf "print ~s~%" (expval->val expval))
@@ -292,7 +315,7 @@
   (define value-of-let
     (lambda (vars exps body env)
       (if (repeat-in-list vars)
-          (eopl:error 'let "identifer repeat in let")
+          (eopl:error 'let "identifer repeat")
           (value-of body (let-extend-env vars exps env)))))
   
   (define let-extend-env
@@ -306,7 +329,7 @@
   (define value-of-let*
     (lambda (vars exps body env)
       (if (repeat-in-list vars)
-          (eopl:error 'let* "identifer repeat in let*")
+          (eopl:error 'let* "identifer repeat")
           (value-of body (let*-extend-env vars exps env)))))
   
   (define let*-extend-env
@@ -441,6 +464,11 @@ let x = 30
 in let* x = -(x, 1) y = -(x,2)
    in -(x,y)" 2)
       
+      ;; unpack
+      (simple-unpack "
+let u = 7
+in unpack x y = cons(u, cons(3,emptylist))
+   in -(x,y)" 4)
       ))
   
   (run-all)
