@@ -117,6 +117,10 @@
        ("let" (arbno identifier "=" expression) "in" expression)
        let-exp)   
       
+      (expression
+        ("let*" (arbno identifier "=" expression) "in" expression)
+        let*-exp)
+      
       (expression 
        ("cons" "(" expression "," expression ")")
        cons-exp)
@@ -224,6 +228,8 @@
         
         (let-exp (vars exps body) (value-of-let vars exps body env))
         
+        (let*-exp (vars exps body) (value-of-let* vars exps body env))
+        
         (emptylist-exp () empty-list-val)
         
         (car-exp (exp1) (list-val (car (expval->list (value-of exp1 env)))))
@@ -295,6 +301,18 @@
               (eopl:error 'let "identifer repeat in let")
               (extend-env (car vars) (value-of (car exps) env) (let-extend-env (cdr vars) (cdr exps) env))))))
   
+  (define value-of-let*
+    (lambda (vars exps body env)
+      (value-of body (let*-extend-env vars exps env))))
+  
+  (define let*-extend-env
+    (lambda (vars exps env)
+      (if (null? vars)
+          env
+          (if (find-in-list (car vars) (cdr vars))
+              (eopl:error 'let* "identifer repeat in let*")
+              (let*-extend-env (cdr vars) (cdr exps) (extend-env (car vars) (value-of (car exps) env) env))))))
+  
   (define find-in-list
     (lambda (var list)
       (if (null? list)
@@ -302,6 +320,7 @@
           (if (equal? var (car list))
               #t
               (find-in-list var (cdr list))))))
+  
   
   (define test-list
     '(
@@ -403,6 +422,12 @@ let x = 30
 in let x = -(x,1)
        y = -(x,2)
    in -(x,y)" 1)
+      
+      ;; let*
+      (simple-let* "
+let x = 30
+in let* x = -(x, 1) y = -(x,2)
+   in -(x,y)" 2)
       
       ))
   
