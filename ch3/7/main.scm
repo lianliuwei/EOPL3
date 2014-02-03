@@ -159,6 +159,10 @@
        proc-exp)
       
       (expression
+       ("letproc" identifier "(" identifier ")" expression "in" expression)
+       letproc-exp)
+      
+      (expression
        ("(" expression expression ")")
        call-exp)
       
@@ -248,6 +252,9 @@
                                               (expval->list (value-of exp2 env)))))
         
         (proc-exp (var body) (proc-val (procedure var body env)))
+        
+        (letproc-exp (proc-id var body let-body) 
+                     (value-of let-body (extend-env proc-id (proc-val (procedure var body env)) env)))
         
         (call-exp (rator rand)
                   (let ((proc (expval->proc (value-of rator env)))
@@ -384,6 +391,9 @@ in let
     t4m = proc (f) proc(x) if zero?(x) then 0 else -((f -(x,1)),-4)
 in let times4 = (fix t4m)
    in (times4 4)" 16)
+      
+      ;; letproc
+      (apply-simple-letproc "letproc f (x) -(x,1) in (f 30)" 29)
       
       ))
   
