@@ -416,6 +416,15 @@ in let times4 = (fix t4m)
       (mulit-args-add "let add = proc(x,y) -(x,-(0,y)) in (add 12 2)" 14)
       (mulit-args-add "let add = proc(x,y,z) -(-(x,-(0,y)),-(0,z)) in (add 12 2 3)" 17)
       
+      ;; e3.23
+      (factorial "
+let makefact = proc (maker, x)
+                 if zero?(x)
+                 then 1
+                 else *(x, (maker maker -(x,1)))
+in let fact = proc (x) (makefact makefact x)
+   in (fact 5)" 120)
+      
       ))
   
   (run-all)
