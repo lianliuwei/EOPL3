@@ -395,6 +395,10 @@ in let times4 = (fix t4m)
       ;; letproc
       (apply-simple-letproc "letproc f (x) -(x,1) in (f 30)" 29)
       
+      ;; e3.20
+      (currying-add-1 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 1) 2)" 3)
+      (currying-add-2 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 11) 2)" 13)
+      (currying-add-3 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add -1) 2)" 1)
       ))
   
   (run-all)
