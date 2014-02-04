@@ -425,6 +425,25 @@ let makefact = proc (maker, x)
 in let fact = proc (x) (makefact makefact x)
    in (fact 5)" 120)
       
+      ;; e3.24
+      (odd-even "
+let makeodd =
+proc (m-even, m-odd)
+  proc (x)
+    if zero?(x)
+    then zero?(1)
+    else ((m-even m-odd m-even) -(x,1))
+in let makeeven =
+   proc (m-odd, m-even)
+     proc (x)
+       if zero?(x)
+       then zero?(0)
+       else ((m-odd m-even m-odd) -(x,1))
+in let odd = proc (x) ((makeodd makeeven makeodd) x)
+in let even = proc (x) ((makeeven makeodd makeeven) x)
+in (odd 10)" #f)
+      
+      
       ))
   
   (run-all)
