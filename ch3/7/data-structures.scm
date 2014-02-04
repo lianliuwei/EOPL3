@@ -1,10 +1,10 @@
 (module data-structures (lib "eopl.ss" "eopl")
-
- ;; data structures for proc-lang/proc-rep
-
+  
+  ;; data structures for proc-lang/proc-rep
+  
   (provide (all-defined-out))               ; too many things to list
-
-    ;;;;;;;;;;;;;;;; environment structures ;;;;;;;;;;;;;;;;
+  
+  ;;;;;;;;;;;;;;;; environment structures ;;;;;;;;;;;;;;;;
   
   ;; example of a data type built without define-datatype
   
@@ -38,7 +38,7 @@
     (lambda (r)
       (cdr r)))
   
-    ;;;;;;;;;;;;;;;; expressed values ;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;; expressed values ;;;;;;;;;;;;;;;;
   
   ;;; an expressed value is either a number, a boolean or a procval.
   
@@ -51,12 +51,33 @@
                  ((list-of pred) (cdr val)))))))
   
   (define always-true?
-   (lambda (val)
-     #t))
+    (lambda (val)
+      #t))
+  
+  (define find-in-list
+    (lambda (var list)
+      (if (null? list)
+          #f
+          (if (equal? var (car list))
+              #t
+              (find-in-list var (cdr list))))))
+  
+  (define repeat-in-list
+    (lambda (list)
+      (if (null? list)
+          #f
+          (if (find-in-list (car list) (cdr list))
+              #t
+              (repeat-in-list (cdr list))))))
+  
+  (define var-args?
+    (lambda (vars)
+      (and ((list-of symbol?) vars)
+           (not (repeat-in-list vars)))))
   
   (define-datatype proc proc?
     (procedure 
-     (var symbol?)
+     (var var-args?)
      ;; hack no way to import expression? in main.scm
      (body always-true?) 
      (env environment?)))
@@ -127,4 +148,4 @@
                   variant value)))
   
   
-)
+  )

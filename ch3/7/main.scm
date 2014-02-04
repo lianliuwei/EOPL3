@@ -155,15 +155,15 @@
        list-exp)
       
       (expression
-       ("proc" "(" identifier ")" expression)
+       ("proc" "(" (separated-list identifier ",") ")" expression)
        proc-exp)
       
       (expression
-       ("letproc" identifier "(" identifier ")" expression "in" expression)
+       ("letproc" identifier "(" (separated-list identifier ",") ")" expression "in" expression)
        letproc-exp)
       
       (expression
-       ("(" expression expression ")")
+       ("(" expression (arbno expression) ")")
        call-exp)
       
       ))
@@ -251,17 +251,19 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (var body) (proc-val (procedure var body env)))
+        (proc-exp (vars body) (proc-val (procedure vars body env)))
         
-        (letproc-exp (proc-id var body let-body) 
-                     (value-of let-body (extend-env proc-id (proc-val (procedure var body env)) env)))
+        (letproc-exp (proc-id vars body let-body) 
+                     (value-of let-body 
+                               (extend-env proc-id (proc-val (procedure vars body env)) env)))
         
-        (call-exp (rator rand)
+        (call-exp (rator rands)
                   (let ((proc (expval->proc (value-of rator env)))
-                        (arg (value-of rand env)))
-                    (apply-procedure proc arg)))
+                        (args (value-of-exps rands env)))
+                    (apply-procedure proc args)))
         
         )))
+  
   
   (define value-of-exps
     (lambda (exps env)
@@ -271,11 +273,21 @@
                 (value-of-exps (cdr exps) env)))))
   
   
+  (define list-extend-env
+   (lambda (vars vals env)
+     (if (null? vars)
+         env
+         (list-extend-env (cdr vars) 
+                          (cdr vals) 
+                          (extend-env (car vars) (car vals) env)))))
+  
   (define apply-procedure
-    (lambda (func val)
+    (lambda (func vals)
       (cases proc func
-        (procedure (var body env)
-                   (value-of body (extend-env var val env))))))
+        (procedure (vars body env)
+                   (if (not (equal? (length vars) (length vals)))
+                       (eopl:error 'apply-procedure "args is no right number")
+                       (value-of body (list-extend-env vars vals env)))))))
   
   (define test-list
     '(
@@ -399,11 +411,15 @@ in let times4 = (fix t4m)
       (currying-add-1 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 1) 2)" 3)
       (currying-add-2 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 11) 2)" 13)
       (currying-add-3 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add -1) 2)" 1)
+      
+      ;; multi args
+      (mulit-args-add "let add = proc(x,y) -(x,-(0,y)) in (add 12 2)" 14)
+      (mulit-args-add "let add = proc(x,y,z) -(-(x,-(0,y)),-(0,z)) in (add 12 2 3)" 17)
+      
       ))
   
   (run-all)
   ;; pdf 103
-  (run-one 'y-combinator-1)
   )
 
 
