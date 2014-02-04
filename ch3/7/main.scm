@@ -443,6 +443,22 @@ in let odd = proc (x) ((makeodd makeeven makeodd) x)
 in let even = proc (x) ((makeeven makeodd makeeven) x)
 in (odd 10)" #f)
       
+      ;; e3.25
+      (y-combinator-2 "
+let makerec =
+  proc(f)
+    let d = 
+      proc(d)
+        proc(x)
+          (f (d d) x)
+      in proc(x) ((d d) x)
+in let time4rec = 
+     proc(f, x)
+     if zero?(x)
+       then 0
+       else +(4, (f -(x,1)))
+in let time4 = (makerec time4rec)
+in (time4 10)" 40)
       
       ))
   
