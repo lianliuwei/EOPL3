@@ -159,6 +159,10 @@
        proc-exp)
       
       (expression
+       ("traceproc" "(" (separated-list identifier ",") ")" expression)
+       traceproc-exp)
+      
+      (expression
        ("letproc" identifier "(" (separated-list identifier ",") ")" expression "in" expression)
        letproc-exp)
       
@@ -251,16 +255,15 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (vars body) (proc-val (procedure vars body env)))
+        (proc-exp (vars body) (proc-val (procedure vars body env #f)))
+        
+        (traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
         
         (letproc-exp (proc-id vars body let-body) 
                      (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env)) env)))
+                               (extend-env proc-id (proc-val (procedure vars body env #f)) env)))
         
-        (call-exp (rator rands)
-                  (let ((proc (expval->proc (value-of rator env)))
-                        (args (value-of-exps rands env)))
-                    (apply-procedure proc args)))
+        (call-exp (rator rands) (value-of-call-exp rator rands env))
         
         )))
   
@@ -281,10 +284,30 @@
                           (cdr vals) 
                           (extend-env (car vars) (car vals) env)))))
   
-  (define apply-procedure
+  ;; value-of func first and find out if need trace and value-of args
+  (define value-of-call-exp
+    (lambda (rator rands env)
+      (letrec ((func (expval->proc (value-of rator env)))
+               (trace (is-proc-trace func)))
+        (let () 
+          (if trace
+            (eopl:printf "traceproc on entry~%") #t)
+              (letrec ((args (value-of-exps rands env))
+                       (ret (apply-procedure func args)))
+                (if trace
+                  (eopl:printf "traceproc on exit~%") #t)
+                ret)))))
+
+  (define is-proc-trace
+    (lambda (func)
+      (cases proc func
+        (procedure (vars body env trace)
+                   trace))))
+  
+    (define apply-procedure
     (lambda (func vals)
       (cases proc func
-        (procedure (vars body env)
+        (procedure (vars body env trace)
                    (if (not (equal? (length vars) (length vals)))
                        (eopl:error 'apply-procedure "args is no right number")
                        (value-of body (list-extend-env vars vals env)))))))
@@ -460,10 +483,12 @@ in let time4rec =
 in let time4 = (makerec time4rec)
 in (time4 10)" 40)
       
+      ;; e3.27
+      (traceproc1 "let f = traceproc (x) -(x,11) in (f(f 77))" 55)
       ))
   
   (run-all)
-  ;; pdf 103
+  ;; pdf 104
   )
 
 
