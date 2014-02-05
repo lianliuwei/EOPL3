@@ -91,80 +91,85 @@
        var-exp)
       
       (expression
-       ("-" "(" expression "," expression ")")
-       diff-exp)
-      
-      (expression 
-       ("+" "(" expression "," expression ")") 
-       add-exp)
-      
-      (expression
-       ("*" "(" expression "," expression ")") 
-       mulit-exp)
-      
-      (expression
-       ("quotient" "(" expression "," expression ")") 
-       quotient-exp)
-      
-      (expression 
-       ("equal?" "(" expression "," expression ")")
-       equal?-exp)
-      
-      (expression 
-       ("greater?" "(" expression "," expression ")")
-       greater?-exp)
-      
-      (expression
-       ("less?" "(" expression "," expression ")")
-       less?-exp)
-      
-      (expression
-       ("zero?" "(" expression ")") 
-       zero?-exp)
-      
-      (expression 
-       ("minus" "(" expression ")") 
-       minus-exp)
-      
-      (expression
        ("if" expression "then" expression "else" expression)
        if-exp)
       
       (expression
        ("let" identifier "=" expression "in" expression)
        let-exp)   
-      
-      (expression 
-       ("cons" "(" expression "," expression ")")
-       cons-exp)
-      
-      (expression
-       ("car" "(" expression ")")
-       car-exp)
-      
-      (expression
-       ("cdr" "(" expression ")")
-       cdr-exp)
-      
+           
       (expression
        ("emptylist")
        emptylist-exp)
       
       (expression
-       ("list" "(" (separated-list expression ",") ")")
-       list-exp)
-      
-      (expression
-       ("proc" "(" (separated-list identifier ",") ")" expression)
+       ("proc" "(" (arbno identifier) ")" expression)
        proc-exp)
       
       (expression
-       ("letproc" identifier "(" (separated-list identifier ",") ")" expression "in" expression)
+       ("letproc" identifier "(" (arbno identifier) ")" expression "in" expression)
        letproc-exp)
       
       (expression
-       ("(" expression (arbno expression) ")")
+       ("(" call-expression ")")
        call-exp)
+      
+      ;; call-expression
+      (call-expression
+       ("-" expression expression)
+       diff-exp)
+      
+      (call-expression 
+       ("+" expression expression) 
+       add-exp)
+      
+      (call-expression
+       ("*" expression expression) 
+       mulit-exp)
+      
+      (call-expression
+       ("quotient" expression expression) 
+       quotient-exp)
+      
+      (call-expression 
+       ("equal?" expression expression)
+       equal?-exp)
+      
+      (call-expression 
+       ("greater?" expression expression)
+       greater?-exp)
+      
+      (call-expression
+       ("less?" expression expression)
+       less?-exp)
+      
+      (call-expression
+       ("zero?" expression) 
+       zero?-exp)
+      
+      (call-expression 
+       ("minus" expression) 
+       minus-exp)
+      
+      (call-expression 
+       ("cons" expression expression)
+       cons-exp)
+      
+      (call-expression
+       ("car" expression)
+       car-exp)
+      
+      (call-expression
+       ("cdr" expression)
+       cdr-exp)
+      
+      (call-expression
+       ("list" (arbno expression))
+       list-exp)
+      
+      (call-expression
+       (expression (arbno expression))
+       call-expression-call-exp)
       
       ))
   
@@ -191,6 +196,32 @@
     (lambda (exp env)
       (cases expression exp
         (const-exp (exp1) (num-val exp1))
+        
+        (var-exp (exp1) (apply-env env exp1))
+        
+        (if-exp (exp1 exp2 exp3) (if (expval->bool (value-of exp1 env)) 
+                                     (value-of exp2 env)
+                                     (value-of exp3 env)))
+        
+        (let-exp (var exp1 body) (value-of body 
+                                           (extend-env var (value-of exp1 env) env)))
+        
+        (emptylist-exp () empty-list-val)
+        
+        (proc-exp (vars body) (proc-val (procedure vars body env)))
+        
+        (letproc-exp (proc-id vars body let-body) 
+                     (value-of let-body 
+                               (extend-env proc-id (proc-val (procedure vars body env)) env)))
+        
+        (call-exp (exp1)
+                  (value-of-call-exp exp1 env))
+        
+        )))
+  
+  (define value-of-call-exp
+    (lambda (exp env)
+      (cases call-expression exp
         
         (diff-exp (exp1 exp2) 
                   (num-val (- 
@@ -227,20 +258,9 @@
                               (expval->num (value-of exp1 env)) 
                               (expval->num (value-of exp2 env)))))
         
-        (var-exp (exp1) (apply-env env exp1))
-        
-        (if-exp (exp1 exp2 exp3) (if (expval->bool (value-of exp1 env)) 
-                                     (value-of exp2 env)
-                                     (value-of exp3 env)))
-        
         (zero?-exp (exp1) (bool-val (= (expval->num (value-of exp1 env)) 0)))
         
         (minus-exp (exp1) (num-val (- 0 (expval->num (value-of exp1 env)))))
-        
-        (let-exp (var exp1 body) (value-of body 
-                                           (extend-env var (value-of exp1 env) env)))
-        
-        (emptylist-exp () empty-list-val)
         
         (car-exp (exp1) (list-val (car (expval->list (value-of exp1 env)))))
         
@@ -251,19 +271,12 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (vars body) (proc-val (procedure vars body env)))
-        
-        (letproc-exp (proc-id vars body let-body) 
-                     (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env)) env)))
-        
-        (call-exp (rator rands)
+        (call-expression-call-exp (rator rands)
                   (let ((proc (expval->proc (value-of rator env)))
                         (args (value-of-exps rands env)))
                     (apply-procedure proc args)))
         
         )))
-  
   
   (define value-of-exps
     (lambda (exps env)
@@ -295,104 +308,104 @@
       ;; simple arithmetic
       (positive-const "11" 11)
       (negative-const "-33" -33)
-      (simple-arith-1 "-(44,33)" 11)
+      (simple-arith-1 "(- 44 33)" 11)
       
       ;; nested arithmetic
-      (nested-arith-left "-(-(44,33),22)" -11)
-      (nested-arith-right "-(55, -(22,11))" 44)
+      (nested-arith-left "(-(- 44 33) 22)" -11)
+      (nested-arith-right "(- 55 (- 22 11))" 44)
       
       ;; simple variables
       (test-var-1 "x" 10)
-      (test-var-2 "-(x,1)" 9)
-      (test-var-3 "-(1,x)" -9)
+      (test-var-2 "(- x 1)" 9)
+      (test-var-3 "(- 1 x)" -9)
       
       ;; simple unbound variables
       (test-unbound-var-1 "foo" error)
-      (test-unbound-var-2 "-(x,foo)" error)
+      (test-unbound-var-2 "(- x foo)" error)
       
       ;; simple conditionals
-      (if-true "if zero?(0) then 3 else 4" 3)
-      (if-false "if zero?(1) then 3 else 4" 4)
+      (if-true "if (zero? 0) then 3 else 4" 3)
+      (if-false "if (zero? 1) then 3 else 4" 4)
       
       ;; test dynamic typechecking
-      (no-bool-to-diff-1 "-(zero?(0),1)" error)
-      (no-bool-to-diff-2 "-(1,zero?(0))" error)
+      (no-bool-to-diff-1 "(-(zero? 0) 1)" error)
+      (no-bool-to-diff-2 "(-(1 (zero? 0))" error)
       (no-int-to-if "if 1 then 2 else 3" error)
       
       ;; make sure that the test and both arms get evaluated
       ;; properly. 
-      (if-eval-test-true "if zero?(-(11,11)) then 3 else 4" 3)
-      (if-eval-test-false "if zero?(-(11, 12)) then 3 else 4" 4)
+      (if-eval-test-true "if (zero? (- 11 11)) then 3 else 4" 3)
+      (if-eval-test-false "if (zero? (- 11 12)) then 3 else 4" 4)
       
       ;; and make sure the other arm doesn't get evaluated.
-      (if-eval-test-true-2 "if zero?(-(11, 11)) then 3 else foo" 3)
-      (if-eval-test-false-2 "if zero?(-(11,12)) then foo else 4" 4)
+      (if-eval-test-true-2 "if (zero?(- 11 11)) then 3 else foo" 3)
+      (if-eval-test-false-2 "if (zero?(- 11 12)) then foo else 4" 4)
       
       ;; simple let
       (simple-let-1 "let x = 3 in x" 3)
       
       ;; make sure the body and rhs get evaluated
-      (eval-let-body "let x = 3 in -(x,1)" 2)
-      (eval-let-rhs "let x = -(4,1) in -(x,1)" 2)
+      (eval-let-body "let x = 3 in (- x 1)" 2)
+      (eval-let-rhs "let x = (- 4 1) in (- x 1)" 2)
       
       ;; check nested let and shadowing
-      (simple-nested-let "let x = 3 in let y = 4 in -(x,y)" -1)
+      (simple-nested-let "let x = 3 in let y = 4 in (- x y)" -1)
       (check-shadowing-in-body "let x = 3 in let x = 4 in x" 4)
-      (check-shadowing-in-rhs "let x = 3 in let x = -(x,1) in x" 2)
+      (check-shadowing-in-rhs "let x = 3 in let x = (- x 1) in x" 2)
       
       ;; test minus operate
-      (just-minus "minus(-1)" 1)
-      (book-exam "minus(-(minus(5), 9))" 14)
-      (var-in-minus "minus(-(minus(x), 9))" 19)
+      (just-minus "(minus -1)" 1)
+      (book-exam "(minus (- (minus 5) 9))" 14)
+      (var-in-minus "(minus (- (minus x) 9))" 19)
       
       ;; test add operate
-      (just-add "+(10, 2)" 12)
+      (just-add "(+ 10 2)" 12)
       
       ;; test mulit operate
-      (just-mulit "*(10, 2)" 20)
+      (just-mulit "(* 10 2)" 20)
       
       ;; test quotient  operate
-      (just-quotient "quotient(10,3)" 3)
+      (just-quotient "(quotient 10 3)" 3)
       
       ;; test equal? greater? less?
-      (no-equal "equal?(1, 2)" #f)
-      (equal "equal?(10, 10)"  #t)
-      (greater "greater?(10, 2)" #t)
-      (no-greater "greater?(19, 19)" #f)
-      (less "less?(4,6)" #t)
-      (no-less "less?(88,7)" #f)
+      (no-equal "(equal? 1 2)" #f)
+      (equal "(equal? 10 10)"  #t)
+      (greater "(greater? 10 2)" #t)
+      (no-greater "(greater? 19 19)" #f)
+      (less "(less? 4 6)" #t)
+      (no-less "(less? 88 7)" #f)
       
       ;; list test
       ;; '() lead to wrong because ' is at first line of test-list
       (empty-list "emptylist" ())
-      (one-item "cons(1,emptylist)" (1))
-      (two-item "cons(1,cons(zero?(0),emptylist))" (1 #t))
-      (list-in-item "cons(1,cons(zero?(0),cons(cons(10,emptylist),emptylist)))" (1 #t (10)))
+      (one-item "(cons 1 emptylist)" (1))
+      (two-item "(cons 1 (cons(zero? 0) emptylist))" (1 #t))
+      (list-in-item "(cons 1 (cons (zero? 0) (cons (cons 10 emptylist) emptylist)))" (1 #t (10)))
       
       ;; list operate
-      (empty-list2 "list()" ())
-      (one-item2 "list(100)" (100))
-      (three-item "list(120, 200, zero?(0))" (120 200 #t))
-      (e3.10 "let x=4 in list(x, -(x,1), -(x,3))" (4 3 1))
+      (empty-list2 "(list)" ())
+      (one-item2 "(list 100)" (100))
+      (three-item "(list 120  200  (zero? 0))" (120 200 #t))
+      (e3.10 "let x=4 in (list x (- x 1) (- x 3))" (4 3 1))
       
       ;; proc test
-      (proc1 "let f = proc (x) -(x,11) in (f(f 77))" 55)
-      (proc2 "(proc (f) (f (f 77)) proc (x) -(x, 11))" 55)
+      (proc1 "let f = proc (x) (- x 11) in (f(f 77))" 55)
+      (proc2 "(proc (f) (f (f 77)) proc (x) (- x 11))" 55)
       (lexical-scope "
 let x = 200 
-   in let f = proc (z) -(z,x) 
+   in let f = proc (z) (- z x) 
       in let x = 100 
-         in let g = proc (z) -(z,x)
-            in -((f 1), (g 1))" -100)
+         in let g = proc (z) (- z x)
+            in (- (f 1) (g 1))" -100)
       
       ;; simple applications
-      (apply-proc-in-rator-pos "(proc(x) -(x,1)  30)" 29)
-      (apply-simple-proc "let f = proc (x) -(x,1) in (f 30)" 29)
-      (let-to-proc-1 "(proc(f)(f 30)  proc(x)-(x,1))" 29)
+      (apply-proc-in-rator-pos "(proc(x) (- x 1)  30)" 29)
+      (apply-simple-proc "let f = proc (x) (- x 1) in (f 30)" 29)
+      (let-to-proc-1 "(proc(f)(f 30)  proc(x) (- x 1))" 29)
       
       
-      (nested-procs "((proc (x) proc (y) -(x,y)  5) 6)" -1)
-      (nested-procs2 "let f = proc(x) proc (y) -(x,y) in ((f -(10,5)) 6)"
+      (nested-procs "((proc (x) proc (y) (- x y)  5) 6)" -1)
+      (nested-procs2 "let f = proc(x) proc (y) (- x y) in ((f (- 10 5)) 6)"
                      -1)
       
       (y-combinator-1 "
@@ -400,45 +413,45 @@ let fix =  proc (f)
             let d = proc (x) proc (z) ((f (x x)) z)
             in proc (n) ((f (d d)) n)
 in let
-    t4m = proc (f) proc(x) if zero?(x) then 0 else -((f -(x,1)),-4)
+    t4m = proc (f) proc(x) if (zero? x) then 0 else (+ (f (- x 1)) 4)
 in let times4 = (fix t4m)
    in (times4 4)" 16)
       
       ;; letproc
-      (apply-simple-letproc "letproc f (x) -(x,1) in (f 30)" 29)
+      (apply-simple-letproc "letproc f (x) (- x 1) in (f 30)" 29)
       
       ;; e3.20
-      (currying-add-1 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 1) 2)" 3)
-      (currying-add-2 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 11) 2)" 13)
-      (currying-add-3 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add -1) 2)" 1)
+      (currying-add-1 "let add = proc(x) proc (y) (- x (- 0 y)) in ((add 1) 2)" 3)
+      (currying-add-2 "let add = proc(x) proc (y) (- x (- 0 y)) in ((add 11) 2)" 13)
+      (currying-add-3 "let add = proc(x) proc (y) (- x (- 0 y)) in ((add -1) 2)" 1)
       
       ;; multi args
-      (mulit-args-add "let add = proc(x,y) -(x,-(0,y)) in (add 12 2)" 14)
-      (mulit-args-add "let add = proc(x,y,z) -(-(x,-(0,y)),-(0,z)) in (add 12 2 3)" 17)
+      (mulit-args-add "let add = proc(x y) (- x (- 0 y)) in (add 12 2)" 14)
+      (mulit-args-add "let add = proc(x y z) (- (- x (- 0 y)) (- 0 z)) in (add 12 2 3)" 17)
       
       ;; e3.23
       (factorial "
-let makefact = proc (maker, x)
-                 if zero?(x)
+let makefact = proc (maker x)
+                 if (zero? x)
                  then 1
-                 else *(x, (maker maker -(x,1)))
+                 else (* x (maker maker (- x 1)))
 in let fact = proc (x) (makefact makefact x)
    in (fact 5)" 120)
       
       ;; e3.24
       (odd-even "
 let makeodd =
-proc (m-even, m-odd)
+proc (m-even m-odd)
   proc (x)
-    if zero?(x)
-    then zero?(1)
-    else ((m-even m-odd m-even) -(x,1))
+    if (zero? x)
+    then (zero? 1)
+    else ((m-even m-odd m-even) (- x 1))
 in let makeeven =
-   proc (m-odd, m-even)
+   proc (m-odd m-even)
      proc (x)
-       if zero?(x)
-       then zero?(0)
-       else ((m-odd m-even m-odd) -(x,1))
+       if (zero? x)
+       then (zero? 0)
+       else ((m-odd m-even m-odd) (- x 1))
 in let odd = proc (x) ((makeodd makeeven makeodd) x)
 in let even = proc (x) ((makeeven makeodd makeeven) x)
 in (odd 10)" #f)
@@ -453,17 +466,17 @@ let makerec =
           (f (d d) x)
       in proc(x) ((d d) x)
 in let time4rec = 
-     proc(f, x)
-     if zero?(x)
+     proc(f x)
+     if (zero? x)
        then 0
-       else +(4, (f -(x,1)))
+       else (+ 4 (f (- x 1)))
 in let time4 = (makerec time4rec)
 in (time4 10)" 40)
       
       ))
   
   (run-all)
-  ;; pdf 103
+  ;; pdf 104
   )
 
 
