@@ -255,73 +255,18 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (vars body) (proc-val (procedure vars body (retain-env (occured-free exp) env) #f)))
+        (proc-exp (vars body) (proc-val (procedure vars body #f)))
         
-        (traceproc-exp (vars body) (proc-val (procedure vars body (retain-env (occured-free exp) env) #t)))
+        (traceproc-exp (vars body) (proc-val (procedure vars body #t)))
         
         (letproc-exp (proc-id vars body let-body) 
                      (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env #f)) env)))
+                               (extend-env proc-id (proc-val (procedure vars body #f)) env)))
         
         (call-exp (rator rands) (value-of-call-exp rator rands env))
         
         )))
   
-  
-  (define retain-env
-    (lambda (vars env)
-      (if (null? vars)
-          (empty-env)
-          (extend-env (car vars) (apply-env env (car vars)) (retain-env (cdr vars) env)))))
-  
-  (require racket/base)
-  (require racket/list)
-  
-  (define call-and-merge
-    (lambda exp
-      (if (null? exp)
-          '()
-          (remove-duplicates (apply append (map occured-free exp))))))
-  
-  (define append-and-merge
-    (lambda exp
-      (remove-duplicates (apply append exp))))
-  
-  ;; return occured-free vars
-  (define occured-free
-    (lambda (exp)
-      (cases expression exp
-        (var-exp (exp1) (list exp1))
-        (let-exp (var exp1 body) (append-and-merge (occured-free exp1) (remove var (occured-free body))))
-        (proc-exp (vars body) (remove* vars (occured-free body)))
-        (traceproc-exp (vars body) (remove* vars (occured-free body)))
-        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body) (remove proc-id (occured-free let-body)))))
-        
-        ;; just call sub exp with occured-free
-        (const-exp (exp1) '())
-        (diff-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (add-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (mulit-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (quotient-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (equal?-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (greater?-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (less?-exp (exp1 exp2) (call-and-merge exp1 exp2))
-        (if-exp (exp1 exp2 exp3) (call-and-merge exp1 exp2 exp3))
-        (zero?-exp (exp1) (call-and-merge exp1))
-        (minus-exp (exp1) (call-and-merge exp1))
-        (car-exp (exp1) (call-and-merge exp1))
-        (cdr-exp (exp1) (call-and-merge exp1))
-        (cons-exp (exp1 exp2) (call-and-merge exp1 exp2))
-         ;; use apply unflod exps
-        (list-exp (exps) (apply call-and-merge exps))
-        (call-exp (exp1 exps) (apply call-and-merge (cons exp1 exps)))
-        
-        (else '()))))
-  
-  (define occured-free-test
-    (lambda (string)
-      (cases program (scan&parse string)
-        (a-program (exp) (occured-free exp)))))
   
   (define value-of-exps
     (lambda (exps env)
@@ -348,7 +293,7 @@
           (if trace
               (eopl:printf "traceproc on entry~%") #t)
           (letrec ((args (value-of-exps rands env))
-                   (ret (apply-procedure func args)))
+                   (ret (apply-procedure func args env)))
             (if trace
                 (eopl:printf "traceproc on exit~%") #t)
             ret)))))
@@ -356,13 +301,13 @@
   (define is-proc-trace
     (lambda (func)
       (cases proc func
-        (procedure (vars body env trace)
+        (procedure (vars body trace)
                    trace))))
   
   (define apply-procedure
-    (lambda (func vals)
+    (lambda (func vals env)
       (cases proc func
-        (procedure (vars body env trace)
+        (procedure (vars body trace)
                    (if (not (equal? (length vars) (length vals)))
                        (eopl:error 'apply-procedure "args is no right number")
                        (value-of body (list-extend-env vars vals env)))))))
@@ -456,12 +401,6 @@
       ;; proc test
       (proc1 "let f = proc (x) -(x,11) in (f(f 77))" 55)
       (proc2 "(proc (f) (f (f 77)) proc (x) -(x, 11))" 55)
-      (lexical-scope "
-let x = 200 
-   in let f = proc (z) -(z,x) 
-      in let x = 100 
-         in let g = proc (z) -(z,x)
-            in -((f 1), (g 1))" -100)
       
       ;; simple applications
       (apply-proc-in-rator-pos "(proc(x) -(x,1)  30)" 29)
@@ -469,26 +408,9 @@ let x = 200
       (let-to-proc-1 "(proc(f)(f 30)  proc(x)-(x,1))" 29)
       
       
-      (nested-procs "((proc (x) proc (y) -(x,y)  5) 6)" -1)
-      (nested-procs2 "let f = proc(x) proc (y) -(x,y) in ((f -(10,5)) 6)"
-                     -1)
-      
-      (y-combinator-1 "
-let fix =  proc (f)
-            let d = proc (x) proc (z) ((f (x x)) z)
-            in proc (n) ((f (d d)) n)
-in let
-    t4m = proc (f) proc(x) if zero?(x) then 0 else -((f -(x,1)),-4)
-in let times4 = (fix t4m)
-   in (times4 4)" 16)
-      
       ;; letproc
       (apply-simple-letproc "letproc f (x) -(x,1) in (f 30)" 29)
       
-      ;; e3.20
-      (currying-add-1 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 1) 2)" 3)
-      (currying-add-2 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 11) 2)" 13)
-      (currying-add-3 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add -1) 2)" 1)
       
       ;; multi args
       (mulit-args-add "let add = proc(x,y) -(x,-(0,y)) in (add 12 2)" 14)
@@ -503,47 +425,35 @@ let makefact = proc (maker, x)
 in let fact = proc (x) (makefact makefact x)
    in (fact 5)" 120)
       
-      ;; e3.24
-      (odd-even "
-let makeodd =
-proc (m-even, m-odd)
-  proc (x)
-    if zero?(x)
-    then zero?(1)
-    else ((m-even m-odd m-even) -(x,1))
-in let makeeven =
-   proc (m-odd, m-even)
-     proc (x)
-       if zero?(x)
-       then zero?(0)
-       else ((m-odd m-even m-odd) -(x,1))
-in let odd = proc (x) ((makeodd makeeven makeodd) x)
-in let even = proc (x) ((makeeven makeodd makeeven) x)
-in (odd 10)" #f)
-      
-      ;; e3.25
-      (y-combinator-2 "
-let makerec =
-  proc(f)
-    let d = 
-      proc(d)
-        proc(x)
-          (f (d d) x)
-      in proc(x) ((d d) x)
-in let time4rec = 
-     proc(f, x)
-     if zero?(x)
-       then 0
-       else +(4, (f -(x,1)))
-in let time4 = (makerec time4rec)
-in (time4 10)" 40)
       
       ;; e3.27
       (traceproc1 "let f = traceproc (x) -(x,11) in (f(f 77))" 55)
+      
+      ;; e3.28
+      (dynamic-binding "
+let a = 3
+in let p = proc (x) -(x,a)
+in let a = 5
+in -(a,(p 2))" 8) ;; 6
+      
+      ;; e3.29
+      (return-a-1 "
+let a = 3
+in let p = proc (z) a
+   in let f = proc (x) (p 0)
+      in let a = 5
+         in (f 2)" 5)
+      (return-a-2 "
+let a = 3
+in let p = proc (z) a
+   in let f = proc (a) (p 0)
+      in let a = 5
+         in (f 2)" 2)
+      
       ))
   
   (run-all)
-  ;; pdf 104
+  ;; pdf 105
   )
 
 

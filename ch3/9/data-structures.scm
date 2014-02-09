@@ -80,7 +80,6 @@
      (var var-args?)
      ;; hack no way to import expression? in main.scm
      (body always-true?) 
-     (env environment?)
      (trace boolean?)))
   
   (define-datatype expval expval?
