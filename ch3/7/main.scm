@@ -255,9 +255,9 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (vars body) (proc-val (procedure vars body env #f)))
+        (proc-exp (vars body) (proc-val (procedure vars body (retain-env (occured-free exp) env) #f)))
         
-        (traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
+        (traceproc-exp (vars body) (proc-val (procedure vars body (retain-env (occured-free exp) env) #t)))
         
         (letproc-exp (proc-id vars body let-body) 
                      (value-of let-body 
@@ -268,6 +268,61 @@
         )))
   
   
+  (define retain-env
+    (lambda (vars env)
+      (if (null? vars)
+          (empty-env)
+          (extend-env (car vars) (apply-env env (car vars)) (retain-env (cdr vars) env)))))
+  
+  (require racket/base)
+  (require racket/list)
+  
+  (define call-and-merge
+    (lambda exp
+      (if (null? exp)
+          '()
+          (remove-duplicates (apply append (map occured-free exp))))))
+  
+  (define append-and-merge
+    (lambda exp
+      (remove-duplicates (apply append exp))))
+  
+  ;; return occured-free vars
+  (define occured-free
+    (lambda (exp)
+      (cases expression exp
+        (var-exp (exp1) (list exp1))
+        (let-exp (var exp1 body) (append-and-merge (occured-free exp1) (remove var (occured-free body))))
+        (proc-exp (vars body) (remove* vars (occured-free body)))
+        (traceproc-exp (vars body) (remove* vars (occured-free body)))
+        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body) (remove proc-id (occured-free let-body)))))
+        
+        ;; just call sub exp with occured-free
+        (const-exp (exp1) '())
+        (diff-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (add-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (mulit-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (quotient-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (equal?-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (greater?-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (less?-exp (exp1 exp2) (call-and-merge exp1 exp2))
+        (if-exp (exp1 exp2 exp3) (call-and-merge exp1 exp2 exp3))
+        (zero?-exp (exp1) (call-and-merge exp1))
+        (minus-exp (exp1) (call-and-merge exp1))
+        (car-exp (exp1) (call-and-merge exp1))
+        (cdr-exp (exp1) (call-and-merge exp1))
+        (cons-exp (exp1 exp2) (call-and-merge exp1 exp2))
+         ;; use apply unflod exps
+        (list-exp (exps) (apply call-and-merge exps))
+        (call-exp (exp1 exps) (apply call-and-merge (cons exp1 exps)))
+        
+        (else '()))))
+  
+  (define occured-free-test
+    (lambda (string)
+      (cases program (scan&parse string)
+        (a-program (exp) (occured-free exp)))))
+  
   (define value-of-exps
     (lambda (exps env)
       (if (null? exps)
@@ -277,12 +332,12 @@
   
   
   (define list-extend-env
-   (lambda (vars vals env)
-     (if (null? vars)
-         env
-         (list-extend-env (cdr vars) 
-                          (cdr vals) 
-                          (extend-env (car vars) (car vals) env)))))
+    (lambda (vars vals env)
+      (if (null? vars)
+          env
+          (list-extend-env (cdr vars) 
+                           (cdr vals) 
+                           (extend-env (car vars) (car vals) env)))))
   
   ;; value-of func first and find out if need trace and value-of args
   (define value-of-call-exp
@@ -291,20 +346,20 @@
                (trace (is-proc-trace func)))
         (let () 
           (if trace
-            (eopl:printf "traceproc on entry~%") #t)
-              (letrec ((args (value-of-exps rands env))
-                       (ret (apply-procedure func args)))
-                (if trace
-                  (eopl:printf "traceproc on exit~%") #t)
-                ret)))))
-
+              (eopl:printf "traceproc on entry~%") #t)
+          (letrec ((args (value-of-exps rands env))
+                   (ret (apply-procedure func args)))
+            (if trace
+                (eopl:printf "traceproc on exit~%") #t)
+            ret)))))
+  
   (define is-proc-trace
     (lambda (func)
       (cases proc func
         (procedure (vars body env trace)
                    trace))))
   
-    (define apply-procedure
+  (define apply-procedure
     (lambda (func vals)
       (cases proc func
         (procedure (vars body env trace)
