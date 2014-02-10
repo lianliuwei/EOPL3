@@ -5,7 +5,7 @@
 
   (require "data-structures.scm")
 
-  (provide init-env empty-env extend-env apply-env)
+  (provide init-env empty-env extend-env extend-env-rec apply-env)
 
 ;;;;;;;;;;;;;;;; initial environment ;;;;;;;;;;;;;;;;
   
@@ -37,17 +37,29 @@
 
   (define extend-env
     (lambda (sym val old-env)
-      (extended-env-record sym val old-env)))
+      (extended-env-record sym val #f old-env)))
 
+  (define extend-env-rec
+    (lambda (sym val old-env)
+      (extended-env-record sym val #t old-env)))
+  
   (define apply-env
     (lambda (env search-sym)
       (if (empty-env? env)
 	(eopl:error 'apply-env "No binding for ~s" search-sym)
 	(let ((sym (extended-env-record->sym env))
 	      (val (extended-env-record->val env))
+              (rec (extended-env-record->rec env))
 	      (old-env (extended-env-record->old-env env)))
+          (if (and rec (eqv? search-sym sym))
+              (cases expval val
+                (proc-val (p) 
+                          (cases proc p
+                            (procedure (vars let-body save-env trac)
+                                       (proc-val (procedure vars let-body (extend-env-rec sym val save-env) trac)))))
+                (else (eopl:error 'apply-env "rec only for prc-val")))
 	  (if (eqv? search-sym sym)
 	    val
-	    (apply-env old-env search-sym))))))
+	    (apply-env old-env search-sym)))))))
 
   )

@@ -135,6 +135,10 @@
        let-exp)   
       
       (expression 
+       ("letrec" identifier "(" (separated-list identifier ",") ")" "=" expression "in" expression)
+       letrec-exp)
+            
+      (expression 
        ("cons" "(" expression "," expression ")")
        cons-exp)
       
@@ -265,6 +269,12 @@
         
         (call-exp (rator rands) (value-of-call-exp rator rands env))
         
+        (letrec-exp (p-name p-vars p-body letrec-body) (value-of 
+                                                        letrec-body 
+                                                        (extend-env-rec 
+                                                         p-name 
+                                                         (proc-val (procedure p-vars p-body (retain-env (occured-free exp) env) #f)) 
+                                                         env)))
         )))
   
   
@@ -540,6 +550,10 @@ in (time4 10)" 40)
       
       ;; e3.27
       (traceproc1 "let f = traceproc (x) -(x,11) in (f(f 77))" 55)
+      
+      ;; letrec
+     (double-letrec "letrec double(x) = if zero?(x) then 0 else +((double -(x,1)), 2) in (double 6)" 12)
+     
       ))
   
   (run-all)

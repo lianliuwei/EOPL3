@@ -13,8 +13,8 @@
       '()))
   
   (define extended-env-record
-    (lambda (sym val old-env)
-      (cons (list sym val) old-env)))
+    (lambda (sym val rec old-env)
+      (cons (list sym val rec) old-env)))
   
   (define empty-env-record? null?)
   
@@ -33,6 +33,10 @@
   (define extended-env-record->val
     (lambda (r)
       (cadr (car r))))
+  
+  (define extended-env-record->rec
+    (lambda (r)
+      (caddr (car r))))
   
   (define extended-env-record->old-env
     (lambda (r)
