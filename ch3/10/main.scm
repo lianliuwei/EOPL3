@@ -554,6 +554,8 @@ in (time4 10)" 40)
       ;; letrec
      (double-letrec "letrec double(x) = if zero?(x) then 0 else +((double -(x,1)), 2) in (double 6)" 12)
      
+     ;; e3.31
+     (multiple-letrec "letrec multiple(x,base) = if zero?(x) then 0 else +((multiple -(x,1) base), base) in (multiple 10 6)" 60)
       ))
   
   (run-all)
