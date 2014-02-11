@@ -265,7 +265,11 @@
         
         (letproc-exp (proc-id vars body let-body) 
                      (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env #f)) env)))
+                               (extend-env proc-id (proc-val (procedure vars
+                                                                        body 
+                                                                        (retain-env (remove* vars (occured-free exp)) env) 
+                                                                        #f)) 
+                                           env)))
         
         (call-exp (rator rands) (value-of-call-exp rator rands env))
         
@@ -273,7 +277,11 @@
                                                         letrec-body 
                                                         (extend-env-rec 
                                                          p-name 
-                                                         (proc-val (procedure p-vars p-body (retain-env (occured-free exp) env) #f)) 
+                                                         ;; need remove func name and vars from occured-free
+                                                         (proc-val (procedure p-vars 
+                                                                              p-body 
+                                                                              (retain-env (remove* (cons p-name p-vars) (occured-free p-body)) env) 
+                                                                              #f)) 
                                                          env)))
         )))
   
@@ -305,7 +313,7 @@
         (let-exp (var exp1 body) (append-and-merge (occured-free exp1) (remove var (occured-free body))))
         (proc-exp (vars body) (remove* vars (occured-free body)))
         (traceproc-exp (vars body) (remove* vars (occured-free body)))
-        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body) (remove proc-id (occured-free let-body)))))
+        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body)) (remove proc-id (occured-free let-body))))
         
         ;; just call sub exp with occured-free
         (const-exp (exp1) '())
