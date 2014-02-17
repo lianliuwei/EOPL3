@@ -129,13 +129,13 @@
       (expression
        ("if" expression "then" expression "else" expression)
        if-exp)
-      
+        
       (expression
-       ("let" identifier "=" expression "in" expression)
-       let-exp)   
+       ("let" (arbno identifier "=" expression) "in" expression)
+       let-exp) 
       
       (expression 
-       ("letrec" identifier "(" (separated-list identifier ",") ")" "=" expression "in" expression)
+       ("letrec" (arbno identifier "(" (separated-list identifier ",") ")" "=" expression ) "in" expression)
        letrec-exp)
             
       (expression 
@@ -245,9 +245,8 @@
         
         (minus-exp (exp1) (num-val (- 0 (expval->num (value-of exp1 env)))))
         
-        (let-exp (var exp1 body) (value-of body 
-                                           (extend-env var (value-of exp1 env) env)))
-        
+        (let-exp (vars exps body) (value-of-let vars exps body env))
+                
         (emptylist-exp () empty-list-val)
         
         (car-exp (exp1) (list-val (car (expval->list (value-of exp1 env)))))
@@ -265,18 +264,48 @@
         
         (letproc-exp (proc-id vars body let-body) 
                      (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env #f)) env)))
+                               (extend-env proc-id (proc-val (procedure vars
+                                                                        body 
+                                                                        (retain-env (remove* vars (occured-free exp)) env) 
+                                                                        #f)) 
+                                           env)))
         
         (call-exp (rator rands) (value-of-call-exp rator rands env))
         
-        (letrec-exp (p-name p-vars p-body letrec-body) (value-of 
-                                                        letrec-body 
-                                                        (extend-env-rec 
-                                                         p-name 
-                                                         (proc-val (procedure p-vars p-body (retain-env (occured-free exp) env) #f)) 
-                                                         env)))
+        (letrec-exp (p-names p-varss p-bodys letrec-body) (value-of-letrec p-names p-varss p-bodys letrec-body env))
         )))
   
+  
+  (define value-of-letrec
+    (lambda (p-names p-varss p-bodys letrec-body env)
+      (if (repeat-in-list p-names)
+          (eopl:error 'letrec "identifer repeat")
+          (value-of letrec-body (extend-env-rec (letrec-extend-env p-names p-names p-varss p-bodys env) env)))))
+   
+  (define letrec-extend-env
+    (lambda (p-names-need-rec p-names p-varss p-bodys env)
+      (if (null? p-names)
+          (empty-env)
+          (extend-env (car p-names) 
+                      (proc-val (procedure (car p-varss) 
+                                           (car p-bodys) 
+                                           ;; need remove func name and vars from occured-free
+                                           (retain-env (remove* (append p-names-need-rec (car p-varss)) (occured-free (car p-bodys))) env) 
+                                           #f))
+                      (letrec-extend-env p-names-need-rec (cdr p-names) (cdr p-varss) (cdr p-bodys) env)))))
+  (define value-of-let
+    (lambda (vars exps body env)
+      (if (repeat-in-list vars)
+          (eopl:error 'let "identifer repeat")
+          (value-of body (let-extend-env vars exps env)))))
+  
+  (define let-extend-env
+    (lambda (vars exps env)
+      (if (null? vars)
+          env
+          (extend-env (car vars) 
+                      (value-of (car exps) env) 
+                      (let-extend-env (cdr vars) (cdr exps) env)))))
   
   (define retain-env
     (lambda (vars env)
@@ -302,10 +331,10 @@
     (lambda (exp)
       (cases expression exp
         (var-exp (exp1) (list exp1))
-        (let-exp (var exp1 body) (append-and-merge (occured-free exp1) (remove var (occured-free body))))
+        (let-exp (vars exps body) (apply append-and-merge (cons (remove* vars (occured-free body)) (map occured-free exps))))
         (proc-exp (vars body) (remove* vars (occured-free body)))
         (traceproc-exp (vars body) (remove* vars (occured-free body)))
-        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body) (remove proc-id (occured-free let-body)))))
+        (letproc-exp (proc-id vars body let-body) (append-and-merge (remove* vars (occured-free body)) (remove proc-id (occured-free let-body))))
         
         ;; just call sub exp with occured-free
         (const-exp (exp1) '())
@@ -556,10 +585,17 @@ in (time4 10)" 40)
      
      ;; e3.31
      (multiple-letrec "letrec multiple(x,base) = if zero?(x) then 0 else +((multiple -(x,1) base), base) in (multiple 10 6)" 60)
+     
+     ;; e3.32
+     (mututally-rec "
+letrec
+  even(x) = if zero?(x) then zero?(0) else (odd -(x,1))
+  odd(x) = if zero?(x) then zero?(1) else (even -(x,1))
+in (odd 13)" #t)
       ))
   
   (run-all)
-  ;; pdf 104
+  ;; pdf 107
   )
 
 

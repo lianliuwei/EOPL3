@@ -37,11 +37,26 @@
 
   (define extend-env
     (lambda (sym val old-env)
-      (extended-env-record sym val #f old-env)))
+      (extended-env-record sym val old-env)))
 
   (define extend-env-rec
-    (lambda (sym val old-env)
-      (extended-env-record sym val #t old-env)))
+    (lambda (rec-env old-env)
+      (extended-env-record-rec rec-env old-env)))
+  
+  (define in-env?
+    (lambda (env search-sym)
+      (if (empty-env? env)
+	#f
+	(let ((sym (extended-env-record->sym env))
+	      (val (extended-env-record->val env))
+              (rec (extended-env-record->rec env))
+              (rec-env (extended-env-record->rec-env env))
+	      (old-env (extended-env-record->old-env env)))
+          (if (and rec (in-env? search-sym ))
+              #t
+              (if (eqv? search-sym sym)
+                  #t
+                  (in-env? old-env search-sym)))))))
   
   (define apply-env
     (lambda (env search-sym)
@@ -50,13 +65,14 @@
 	(let ((sym (extended-env-record->sym env))
 	      (val (extended-env-record->val env))
               (rec (extended-env-record->rec env))
+              (rec-env (extended-env-record->rec-env env))
 	      (old-env (extended-env-record->old-env env)))
-          (if (and rec (eqv? search-sym sym))
-              (cases expval val
+          (if (and rec (in-env? rec-env search-sym ))
+              (cases expval (apply-env rec-env search-sym)
                 (proc-val (p) 
                           (cases proc p
                             (procedure (vars let-body save-env trac)
-                                       (proc-val (procedure vars let-body (extend-env-rec sym val save-env) trac)))))
+                                       (proc-val (procedure vars let-body (extend-env-rec rec-env save-env) trac)))))
                 (else (eopl:error 'apply-env "rec only for prc-val")))
 	  (if (eqv? search-sym sym)
 	    val

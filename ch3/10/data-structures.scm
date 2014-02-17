@@ -13,18 +13,18 @@
       '()))
   
   (define extended-env-record
-    (lambda (sym val rec old-env)
-      (cons (list sym val rec) old-env)))
+    (lambda (sym val old-env)
+      (cons (list sym val #f) old-env)))
+  
+  (define extended-env-record-rec
+    (lambda (rec-env old-env)
+      (cons (list rec-env 33 #t) old-env)))
   
   (define empty-env-record? null?)
   
   (define environment?
     (lambda (x)
-      (or (empty-env-record? x)
-          (and (pair? x)
-               (symbol? (car (car x)))
-               (expval? (cadr (car x)))
-               (environment? (cdr x))))))
+      #t))
   
   (define extended-env-record->sym
     (lambda (r)
@@ -37,6 +37,10 @@
   (define extended-env-record->rec
     (lambda (r)
       (caddr (car r))))
+  
+  (define extended-env-record->rec-env
+    (lambda (r)
+      (car (car r))))
   
   (define extended-env-record->old-env
     (lambda (r)
