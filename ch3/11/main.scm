@@ -277,16 +277,8 @@
     (lambda (p-names p-varss p-bodys letrec-body env)
       (if (repeat-in-list p-names)
           (eopl:error 'letrec "identifer repeat")
-          (value-of letrec-body (extend-env-rec (letrec-extend-env p-names p-names p-varss p-bodys env) env)))))
-   
-  (define letrec-extend-env
-    (lambda (p-names-need-rec p-names p-varss p-bodys env)
-      (if (null? p-names)
-          (empty-env)
-          (extend-env (car p-names) 
-                      (proc-val (procedure (car p-varss) (car p-bodys) env #f))
-                      (letrec-extend-env p-names-need-rec (cdr p-names) (cdr p-varss) (cdr p-bodys) env)))))
-  
+          (value-of letrec-body (extend-env-rec p-names p-varss p-bodys env)))))
+     
   (define value-of-let
     (lambda (vars exps body env)
       (if (repeat-in-list vars)
@@ -522,17 +514,17 @@ in (time4 10)" 40)
       ;; letrec
      (double-letrec "letrec double(x) = if zero?(x) then 0 else +((double -(x,1)), 2) in (double 6)" 12)
      
-     ;; e3.31
+     ;; e3.35
      (multiple-letrec "letrec multiple(x,base) = if zero?(x) then 0 else +((multiple -(x,1) base), base) in (multiple 10 6)" 60)
      
-     ;; e3.32
+     ;; e3.36
      (mututally-rec "
 letrec
   even(x) = if zero?(x) then zero?(0) else (odd -(x,1))
   odd(x) = if zero?(x) then zero?(1) else (even -(x,1))
 in (odd 13)" #t)
      
-      ;; e3.33
+      ;; e3.36
      (mututally-rec-mult-param "
 letrec
   even(x, y, z) = if zero?(x) then y else (odd -(x,1) y z)

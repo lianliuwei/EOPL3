@@ -40,23 +40,27 @@
       (extended-env-record sym val old-env)))
 
   (define extend-env-rec
-    (lambda (rec-env old-env)
-      (extended-env-record-rec rec-env old-env)))
+    (lambda (p-names b-varss bodys old-env)
+      (let ((new-env (extend-env-rec-helper1 p-names old-env)))
+        (extend-env-rec-helper2 b-varss bodys new-env new-env)
+        new-env)))
   
-  (define in-env?
-    (lambda (env search-sym)
-      (if (empty-env? env)
-	#f
-	(let ((sym (extended-env-record->sym env))
-	      (val (extended-env-record->val env))
-              (rec (extended-env-record->rec env))
-              (rec-env (extended-env-record->rec-env env))
-	      (old-env (extended-env-record->old-env env)))
-          (if (and rec (in-env? search-sym ))
-              #t
-              (if (eqv? search-sym sym)
-                  #t
-                  (in-env? old-env search-sym)))))))
+  (define extend-env-rec-helper1
+    (lambda (p-names old-env)
+      (let ((vec (make-vector 1)))
+        (if (null? p-names)
+            old-env
+            (extend-env (car p-names) vec (extend-env-rec-helper1 (cdr p-names) old-env))))))
+  
+  (define extend-env-rec-helper2
+    (lambda (b-varss bodys raw-env first-env)
+      (if (null? b-varss)
+          #t
+          (let ((vec (extended-env-record->val raw-env))
+                (old-env (extended-env-record->old-env raw-env)))
+            (vector-set! vec 0
+                           (proc-val (procedure (car b-varss) (car bodys) first-env #f)))
+            (extend-env-rec-helper2 (cdr b-varss) (cdr bodys) old-env first-env)))))
   
   (define apply-env
     (lambda (env search-sym)
@@ -64,18 +68,13 @@
 	(eopl:error 'apply-env "No binding for ~s" search-sym)
 	(let ((sym (extended-env-record->sym env))
 	      (val (extended-env-record->val env))
-              (rec (extended-env-record->rec env))
-              (rec-env (extended-env-record->rec-env env))
 	      (old-env (extended-env-record->old-env env)))
-          (if (and rec (in-env? rec-env search-sym ))
-              (cases expval (apply-env rec-env search-sym)
-                (proc-val (p) 
-                          (cases proc p
-                            (procedure (vars let-body save-env trac)
-                                       (proc-val (procedure vars let-body (extend-env-rec rec-env save-env) trac)))))
-                (else (eopl:error 'apply-env "rec only for prc-val")))
 	  (if (eqv? search-sym sym)
-	    val
-	    (apply-env old-env search-sym)))))))
+	    (if (vector? val)
+                ;; return beforehand created procedure
+                (vector-ref val 0)
+                val)
+	    (apply-env old-env search-sym))))))
 
+  
   )
