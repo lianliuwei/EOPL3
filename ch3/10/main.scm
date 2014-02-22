@@ -592,6 +592,13 @@ letrec
   even(x) = if zero?(x) then zero?(0) else (odd -(x,1))
   odd(x) = if zero?(x) then zero?(1) else (even -(x,1))
 in (odd 13)" #t)
+     
+      ;; e3.33
+     (mututally-rec-mult-param "
+letrec
+  even(x, y, z) = if zero?(x) then y else (odd -(x,1) y z)
+  odd(x, y, z) = if zero?(x) then z else (even -(x,1) y z)
+in (odd 13 12 1)" 12)
       ))
   
   (run-all)
