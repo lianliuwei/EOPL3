@@ -5,7 +5,7 @@
 
   (require "data-structures.scm")
 
-  (provide init-env empty-env extend-env extend-env-rec apply-env)
+  (provide init-env empty-env extend-env apply-env init-senv empty-senv extend-senv apply-senv)
 
 ;;;;;;;;;;;;;;;; initial environment ;;;;;;;;;;;;;;;;
   
@@ -18,63 +18,60 @@
   (define init-env 
     (lambda ()
       (extend-env 
-       'i (num-val 1)
+       (num-val 1)
        (extend-env
-        'v (num-val 5)
+        (num-val 5)
         (extend-env
-         'x (num-val 10)
+         (num-val 10)
          (empty-env))))))
+  
+  (define init-senv
+    (lambda ()
+      (extend-senv 
+       'i 
+       (extend-senv 
+        'v 
+        (extend-senv
+         'x
+         (empty-senv))))))
 
 ;;;;;;;;;;;;;;;; environment constructors and observers ;;;;;;;;;;;;;;;;
 
   (define empty-env
     (lambda ()
-      (empty-env-record)))
+      '()))
   
   (define empty-env? 
     (lambda (x)
-      (empty-env-record? x)))
+      (null? x)))
 
   (define extend-env
-    (lambda (sym val old-env)
-      (extended-env-record sym val old-env)))
+    (lambda (val old-env)
+      (cons val old-env)))
 
-  (define extend-env-rec
-    (lambda (p-names b-varss bodys old-env)
-      (let ((new-env (extend-env-rec-helper1 p-names old-env)))
-        (extend-env-rec-helper2 b-varss bodys new-env new-env)
-        new-env)))
-  
-  (define extend-env-rec-helper1
-    (lambda (p-names old-env)
-      (let ((vec (make-vector 1)))
-        (if (null? p-names)
-            old-env
-            (extend-env (car p-names) vec (extend-env-rec-helper1 (cdr p-names) old-env))))))
-  
-  (define extend-env-rec-helper2
-    (lambda (b-varss bodys raw-env first-env)
-      (if (null? b-varss)
-          #t
-          (let ((vec (extended-env-record->val raw-env))
-                (old-env (extended-env-record->old-env raw-env)))
-            (vector-set! vec 0
-                           (proc-val (procedure (car b-varss) (car bodys) first-env #f)))
-            (extend-env-rec-helper2 (cdr b-varss) (cdr bodys) old-env first-env)))))
-  
   (define apply-env
-    (lambda (env search-sym)
-      (if (empty-env? env)
-	(eopl:error 'apply-env "No binding for ~s" search-sym)
-	(let ((sym (extended-env-record->sym env))
-	      (val (extended-env-record->val env))
-	      (old-env (extended-env-record->old-env env)))
-	  (if (eqv? search-sym sym)
-	    (if (vector? val)
-                ;; return beforehand created procedure
-                (vector-ref val 0)
-                val)
-	    (apply-env old-env search-sym))))))
+    (lambda (env index)
+      (list-ref env index)))
 
+  ;; senv
+  (define empty-senv
+    (lambda ()
+      '()))
+  
+  (define empty-senv?
+    (lambda (senv)
+      (null? senv)))
+  
+  (define extend-senv
+    (lambda (sym old-senv)
+      (cons sym old-senv)))
+  
+  (define apply-senv
+    (lambda (senv search-sym)
+      (if (empty-senv? senv)
+          (eopl:error 'apply-senv "No binding for ~s" search-sym)
+          (if (eqv? search-sym (car senv))
+              0
+              (+ 1 (apply-senv (cdr senv) search-sym))))))
   
   )

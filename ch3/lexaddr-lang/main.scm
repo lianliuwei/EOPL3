@@ -29,7 +29,12 @@
   ;; Page: 71
   (define run
     (lambda (string)
-      (value-of-program (scan&parse string))))
+      (value-of-program 
+       (translation-of-program (scan&parse string)))))
+  
+  (define translation-run
+    (lambda (string) 
+       (translation-of-program (scan&parse string))))
   
   ;; run-all : () -> unspecified
   
@@ -134,9 +139,9 @@
        ("let" (arbno identifier "=" expression) "in" expression)
        let-exp) 
       
-      (expression 
-       ("letrec" (arbno identifier "(" (separated-list identifier ",") ")" "=" expression ) "in" expression)
-       letrec-exp)
+     ; (expression 
+     ;  ("letrec" (arbno identifier "(" (separated-list identifier ",") ")" "=" expression ) "in" expression)
+     ;  letrec-exp)
             
       (expression 
        ("cons" "(" expression "," expression ")")
@@ -162,17 +167,26 @@
        ("proc" "(" (separated-list identifier ",") ")" expression)
        proc-exp)
       
-      (expression
-       ("traceproc" "(" (separated-list identifier ",") ")" expression)
-       traceproc-exp)
-      
-      (expression
-       ("letproc" identifier "(" (separated-list identifier ",") ")" expression "in" expression)
-       letproc-exp)
-      
+     ; (expression
+     ;  ("traceproc" "(" (separated-list identifier ",") ")" expression)
+     ;  traceproc-exp)
+            
       (expression
        ("(" expression (arbno expression) ")")
        call-exp)
+      
+      ;; nameless-expression for translate
+      (expression
+       ("%lexref" number) 
+       nameless-var-exp)
+      
+      (expression
+       ("%let" (arbno expression) "in" expression)
+       nameless-let-exp)
+      
+      (expression
+       ("%proc" expression)
+       nameless-proc-exp)
       
       ))
   
@@ -195,9 +209,130 @@
       (cases program exp
         (a-program (program-exp) (value-of program-exp (init-env))))))
   
+  ;; traslation program to nameslass
+  (define translation-of-program
+    (lambda (exp)
+      (cases program exp
+        (a-program (program-exp) (a-program (translation-of program-exp (init-senv)))))))
+  
+  (define translation-of
+    (lambda (exp env)
+      (cases expression exp
+        ;; just return
+        (const-exp (exp1) exp)
+        
+        (emptylist-exp () exp)
+        
+        ; call sub exp and build exp
+        (diff-exp (exp1 exp2) 
+                  (diff-exp (translation-of exp1 env) 
+                            (translation-of exp2 env)))
+        
+        (add-exp (exp1 exp2) 
+                 (add-exp (translation-of exp1 env) 
+                          (translation-of exp2 env)))
+        
+        (mulit-exp (exp1 exp2) 
+                   (mulit-exp (translation-of exp1 env) 
+                              (translation-of exp2 env)))
+        
+        (quotient-exp (exp1 exp2) 
+                      (quotient-exp (translation-of exp1 env) 
+                                   (translation-of exp2 env)))
+        
+        (equal?-exp (exp1 exp2) 
+                    (equal?-exp (translation-of exp1 env) 
+                                (translation-of exp2 env)))
+        
+        (greater?-exp (exp1 exp2) 
+                      (greater?-exp (translation-of exp1 env) 
+                                    (translation-of exp2 env)))
+        
+        (less?-exp (exp1 exp2) 
+                   (less?-exp (translation-of exp1 env) 
+                              (translation-of exp2 env)))
+       
+        (if-exp (exp1 exp2 exp3)
+                (if-exp (translation-of exp1 env) 
+                        (translation-of exp2 env)
+                        (translation-of exp3 env)))
+        
+        (zero?-exp (exp1)
+                   (zero?-exp (translation-of exp1 env)))
+        
+        (minus-exp (exp1)
+                   (minus-exp (translation-of exp1 env)))
+        
+        
+        (car-exp (exp1) 
+                 (car-exp (translation-of exp1 env)))
+        
+        (cdr-exp (exp1)
+                 (cdr-exp (translation-of exp1 env)))
+        
+        (list-exp (exps)
+                  (list-exp (translation-of-exps exps env)))
+        
+        (cons-exp (exp1 exp2)
+                  (cons-exp (translation-of exp1 env)
+                            (translation-of exp2 env)))
+        
+        (call-exp (rator rands) 
+                  (call-exp (translation-of rator env)
+                            (translation-of-exps rands env)))
+        
+        
+        ;; translate to nameless exp
+        (var-exp (exp1)
+                 (nameless-var-exp (apply-senv env exp1)))
+        
+        (let-exp (vars exps body)
+                 (let ((new-env (extend-vars-in-senv vars env)))
+                   ; let var val use old-env to resolve
+                   (nameless-let-exp (translation-of-exps exps env) 
+                                     (translation-of body new-env))))
+                  
+        
+        (proc-exp (vars body)
+                  (let ((new-env (extend-vars-in-senv vars env)))
+                    (nameless-proc-exp (translation-of body new-env))))
+        
+        ;(traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
+        
+        ;(letrec-exp (p-names p-varss p-bodys letrec-body) (value-of-letrec p-names p-varss p-bodys letrec-body env))
+        
+        
+        ;; source code can not have nameless exp
+        (else
+         (eopl:printf 'translation-of "invalid source expression ~s" exp))
+        
+        )))
+  
+  (define extend-vars-in-senv
+    (lambda (vars senv)
+      (if (null? vars)
+          senv
+          (extend-senv (car vars) (extend-vars-in-senv (cdr vars) senv)))))
+  
+  (define translation-of-exps
+    (lambda (exps env)
+      (if (null? exps)
+          '()
+          (cons (translation-of (car exps) env)
+                (translation-of-exps (cdr exps) env)))))
+  
   (define value-of
     (lambda (exp env)
       (cases expression exp
+        ;; nameless exp
+        (nameless-var-exp (num) (apply-env env num))
+        
+        (nameless-let-exp (exps body) (value-of-let exps body env))
+        
+        (nameless-proc-exp (body) (proc-val (procedure body env #f)))
+        
+        (call-exp (rator rands) (value-of-call-exp rator rands env))
+        
         (const-exp (exp1) (num-val exp1))
         
         (diff-exp (exp1 exp2) 
@@ -234,9 +369,7 @@
                    (bool-val (< 
                               (expval->num (value-of exp1 env)) 
                               (expval->num (value-of exp2 env)))))
-        
-        (var-exp (exp1) (apply-env env exp1))
-        
+                
         (if-exp (exp1 exp2 exp3) (if (expval->bool (value-of exp1 env)) 
                                      (value-of exp2 env)
                                      (value-of exp3 env)))
@@ -244,8 +377,6 @@
         (zero?-exp (exp1) (bool-val (= (expval->num (value-of exp1 env)) 0)))
         
         (minus-exp (exp1) (num-val (- 0 (expval->num (value-of exp1 env)))))
-        
-        (let-exp (vars exps body) (value-of-let vars exps body env))
                 
         (emptylist-exp () empty-list-val)
         
@@ -258,40 +389,29 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
-        (proc-exp (vars body) (proc-val (procedure vars body env #f)))
         
-        (traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
+        ;(traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
         
-        (letproc-exp (proc-id vars body let-body) 
-                     (value-of let-body 
-                               (extend-env proc-id (proc-val (procedure vars body env #f)) 
-                                           env)))
         
-        (call-exp (rator rands) (value-of-call-exp rator rands env))
+        ;(letrec-exp (p-names p-varss p-bodys letrec-body) (value-of-letrec p-names p-varss p-bodys letrec-body env))
         
-        (letrec-exp (p-names p-varss p-bodys letrec-body) (value-of-letrec p-names p-varss p-bodys letrec-body env))
+        ;; translation code can not have name exp
+        (else
+         (eopl:printf 'value-of "invalid translation expression ~s" exp))
         )))
   
-  
-  (define value-of-letrec
-    (lambda (p-names p-varss p-bodys letrec-body env)
-      (if (repeat-in-list p-names)
-          (eopl:error 'letrec "identifer repeat")
-          (value-of letrec-body (extend-env-rec p-names p-varss p-bodys env)))))
      
   (define value-of-let
-    (lambda (vars exps body env)
-      (if (repeat-in-list vars)
-          (eopl:error 'let "identifer repeat")
-          (value-of body (let-extend-env vars exps env)))))
+    (lambda (exps body env)
+      (let ((vals (value-of-exps exps env)))
+        (value-of body (extend-vals-in-env vals env)))))
   
-  (define let-extend-env
-    (lambda (vars exps env)
-      (if (null? vars)
+  (define extend-vals-in-env
+    (lambda (vals env)
+      (if (null? vals)
           env
-          (extend-env (car vars) 
-                      (value-of (car exps) env) 
-                      (let-extend-env (cdr vars) (cdr exps) env)))))
+          (extend-env (car vals) 
+                      (extend-vals-in-env (cdr vals) env)))))
    
   (define value-of-exps
     (lambda (exps env)
@@ -301,13 +421,6 @@
                 (value-of-exps (cdr exps) env)))))
   
   
-  (define list-extend-env
-    (lambda (vars vals env)
-      (if (null? vars)
-          env
-          (list-extend-env (cdr vars) 
-                           (cdr vals) 
-                           (extend-env (car vars) (car vals) env)))))
   
   ;; value-of func first and find out if need trace and value-of args
   (define value-of-call-exp
@@ -317,6 +430,7 @@
         (let () 
           (if trace
               (eopl:printf "traceproc on entry~%") #t)
+          
           (letrec ((args (value-of-exps rands env))
                    (ret (apply-procedure func args)))
             (if trace
@@ -326,16 +440,14 @@
   (define is-proc-trace
     (lambda (func)
       (cases proc func
-        (procedure (vars body env trace)
+        (procedure (body env trace)
                    trace))))
   
   (define apply-procedure
     (lambda (func vals)
       (cases proc func
-        (procedure (vars body env trace)
-                   (if (not (equal? (length vars) (length vals)))
-                       (eopl:error 'apply-procedure "args is no right number")
-                       (value-of body (list-extend-env vars vals env)))))))
+        (procedure (body env trace)
+                   (value-of body (extend-vals-in-env vals env))))))
   
   (define test-list
     '(
@@ -373,8 +485,8 @@
       (if-eval-test-false "if zero?(-(11, 12)) then 3 else 4" 4)
       
       ;; and make sure the other arm doesn't get evaluated.
-      (if-eval-test-true-2 "if zero?(-(11, 11)) then 3 else foo" 3)
-      (if-eval-test-false-2 "if zero?(-(11,12)) then foo else 4" 4)
+      ; (if-eval-test-true-2 "if zero?(-(11, 11)) then 3 else foo" 3)
+      ; (if-eval-test-false-2 "if zero?(-(11,12)) then foo else 4" 4)
       
       ;; simple let
       (simple-let-1 "let x = 3 in x" 3)
@@ -451,10 +563,7 @@ in let
     t4m = proc (f) proc(x) if zero?(x) then 0 else -((f -(x,1)),-4)
 in let times4 = (fix t4m)
    in (times4 4)" 16)
-      
-      ;; letproc
-      (apply-simple-letproc "letproc f (x) -(x,1) in (f 30)" 29)
-      
+            
       ;; e3.20
       (currying-add-1 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 1) 2)" 3)
       (currying-add-2 "let add = proc(x) proc (y) -(x, -(0,y)) in ((add 11) 2)" 13)
@@ -508,28 +617,7 @@ in let time4rec =
 in let time4 = (makerec time4rec)
 in (time4 10)" 40)
       
-      ;; e3.27
-      (traceproc1 "let f = traceproc (x) -(x,11) in (f(f 77))" 55)
-      
-      ;; letrec
-     (double-letrec "letrec double(x) = if zero?(x) then 0 else +((double -(x,1)), 2) in (double 6)" 12)
-     
-     ;; e3.35
-     (multiple-letrec "letrec multiple(x,base) = if zero?(x) then 0 else +((multiple -(x,1) base), base) in (multiple 10 6)" 60)
-     
-     ;; e3.36
-     (mututally-rec "
-letrec
-  even(x) = if zero?(x) then zero?(0) else (odd -(x,1))
-  odd(x) = if zero?(x) then zero?(1) else (even -(x,1))
-in (odd 13)" #t)
-     
-      ;; e3.36
-     (mututally-rec-mult-param "
-letrec
-  even(x, y, z) = if zero?(x) then y else (odd -(x,1) y z)
-  odd(x, y, z) = if zero?(x) then z else (even -(x,1) y z)
-in (odd 13 12 1)" 12)
+         
      
      ;; e3.37
      (lexical-recursion "
@@ -543,7 +631,8 @@ in let fact = proc (n)
       ))
   
   (run-all)
-  ;; pdf 107
+  
+  ;; pdf 116
   )
 
 

@@ -18,15 +18,7 @@
   
   
   (define empty-env-record? null?)
-  
-  (define environment?
-    (lambda (x)
-      (or (empty-env-record? x)
-          (and (pair? x)
-               (symbol? (car (car x)))
-               ;; (expval? (cadr (car x)))
-               (environment? (cdr x))))))
-  
+    
   
   (define extended-env-record->sym
     (lambda (r)
@@ -72,17 +64,13 @@
               #t
               (repeat-in-list (cdr list))))))
   
-  (define var-args?
-    (lambda (vars)
-      (and ((list-of symbol?) vars)
-           (not (repeat-in-list vars)))))
+ 
   
   (define-datatype proc proc?
     (procedure 
-     (var var-args?)
      ;; hack no way to import expression? in main.scm
      (body always-true?) 
-     (env environment?)
+     (env always-true?)
      (trace boolean?)))
   
   (define-datatype expval expval?
