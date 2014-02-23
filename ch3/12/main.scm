@@ -450,10 +450,32 @@ in let p = proc (z) a
       in let a = 5
          in (f 2)" 2)
       
+      ;; e3.37 
+      (dymamic-fact "
+let fact = proc (n) +(n,1)
+in let fact = proc (n)
+               if zero?(n)
+               then 1
+               else *(n, (fact -(n,1)))
+   in (fact 5)" 120)
+     
+      (dymamic-fact2 "
+let fact = proc (n)
+            if zero?(n)
+            then 1
+            else *(n, (fact -(n,1)))
+   in (fact 5)" 120)
+      
+      ;; e3.37
+      (dynamic-odd-even "
+let odd = proc (n) if zero?(n) then zero?(1) else (even -(n,1))
+    in let even = proc (n) if zero?(n) then zero?(0) else (odd -(n,1))
+       in (even 13)" #f)
+      
       ))
   
   (run-all)
-  ;; pdf 105
+  ;; pdf 110
   )
 
 

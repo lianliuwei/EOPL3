@@ -530,6 +530,16 @@ letrec
   even(x, y, z) = if zero?(x) then y else (odd -(x,1) y z)
   odd(x, y, z) = if zero?(x) then z else (even -(x,1) y z)
 in (odd 13 12 1)" 12)
+     
+     ;; e3.37
+     (lexical-recursion "
+let fact = proc (n) +(n, 1)
+in let fact = proc (n)
+               if zero?(n)
+               then 1
+               else *(n, (fact -(n,1)))
+   in (fact 5)" 25)
+     
       ))
   
   (run-all)
