@@ -175,6 +175,10 @@
        ("(" expression (arbno expression) ")")
        call-exp)
       
+      (expression
+       ("cond"  (arbno "{" expression "==>" expression "}") "end")
+       cond-exp)
+      
       ;; nameless-expression for translate
       (expression
        ("%lexref" number) 
@@ -281,6 +285,9 @@
                   (call-exp (translation-of rator env)
                             (translation-of-exps rands env)))
         
+        (cond-exp (exps1 exps2)
+                  (cond-exp (translation-of-exps exps1 env)
+                            (translation-of-exps exps2 env)))
         
         ;; translate to nameless exp
         (var-exp (exp1)
@@ -333,6 +340,7 @@
         
         (call-exp (rator rands) (value-of-call-exp rator rands env))
         
+        ;; just as old
         (const-exp (exp1) (num-val exp1))
         
         (diff-exp (exp1 exp2) 
@@ -389,6 +397,7 @@
         (cons-exp (exp1 exp2) (list-val (cons (value-of exp1 env)
                                               (expval->list (value-of exp2 env)))))
         
+        (cond-exp (exps1 exps2) (value-of-cond exps1 exps2 env))
         
         ;(traceproc-exp (vars body) (proc-val (procedure vars body env #t)))
         
@@ -400,7 +409,14 @@
          (eopl:printf 'value-of "invalid translation expression ~s" exp))
         )))
   
-     
+  (define value-of-cond
+    (lambda (conds results env)
+      (if (null? conds)
+       (eopl:error 'value-of-cond "no one branch is true")
+       (if (expval->bool (value-of (car conds) env))
+           (value-of (car results) env)
+           (value-of-cond (cdr conds) (cdr results) env)))))  
+  
   (define value-of-let
     (lambda (exps body env)
       (let ((vals (value-of-exps exps env)))
@@ -628,7 +644,12 @@ in let fact = proc (n)
                else *(n, (fact -(n,1)))
    in (fact 5)" 25)
      
-      ))
+     ;cond operate e3.38
+     (simple-cond "cond{zero?(1) ==> 1} {zero?(0) ==> 2} end" 2)
+     (two-true-cond "cond{zero?(0) ==> 1} {zero?(0) ==> 2} {equal?(10,1) ==> 3} end" 1)
+     (cond-in-let "let t = zero?(0) in let z = zero?(1) in cond {t ==> 1} {z ==> 2} end" 1)
+      
+     ))
   
   (run-all)
   
