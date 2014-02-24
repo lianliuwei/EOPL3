@@ -164,6 +164,10 @@
        list-exp)
       
       (expression
+       ("unpack" (arbno identifier) "=" expression "in" expression)
+       unpack-exp)
+      
+      (expression
        ("proc" "(" (separated-list identifier ",") ")" expression)
        proc-exp)
       
@@ -187,6 +191,10 @@
       (expression
        ("%let" (arbno expression) "in" expression)
        nameless-let-exp)
+      
+      (expression
+       ("%unpack" expression "in" expression)
+       nameless-unpack-exp)
       
       (expression
        ("%proc" expression)
@@ -299,6 +307,11 @@
                    (nameless-let-exp (translation-of-exps exps env) 
                                      (translation-of body new-env))))
                   
+        (unpack-exp (vars list-exp body)
+                    (let ((new-env (extend-vars-in-senv vars env)))
+                      ;; list-exp resolve in old-env
+                      (nameless-unpack-exp (translation-of list-exp env)
+                                           (translation-of body new-env))))
         
         (proc-exp (vars body)
                   (let ((new-env (extend-vars-in-senv vars env)))
@@ -335,6 +348,8 @@
         (nameless-var-exp (num) (apply-env env num))
         
         (nameless-let-exp (exps body) (value-of-let exps body env))
+        
+        (nameless-unpack-exp (list-exp body) (value-of-unpack list-exp body env))
         
         (nameless-proc-exp (body) (proc-val (procedure body env #f)))
         
@@ -408,6 +423,11 @@
         (else
          (eopl:printf 'value-of "invalid translation expression ~s" exp))
         )))
+  
+  (define value-of-unpack
+    (lambda (list-exp body env)
+      (let ((list-val (expval->list (value-of list-exp env))))
+        (value-of body (extend-vals-in-env list-val env)))))
   
   (define value-of-cond
     (lambda (conds results env)
@@ -649,11 +669,17 @@ in let fact = proc (n)
      (two-true-cond "cond{zero?(0) ==> 1} {zero?(0) ==> 2} {equal?(10,1) ==> 3} end" 1)
      (cond-in-let "let t = zero?(0) in let z = zero?(1) in cond {t ==> 1} {z ==> 2} end" 1)
       
+     ;; unpack e3.39
+      (simple-unpack "
+let u = 7
+in unpack x y = cons(u, cons(3,emptylist))
+   in -(x,y)" 4)
+      
      ))
   
   (run-all)
   
-  ;; pdf 116
+  ;; pdf 124
   )
 
 
